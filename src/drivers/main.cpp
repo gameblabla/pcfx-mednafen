@@ -42,11 +42,7 @@
 #include "input.h"
 #include "Joystick.h"
 #include "video.h"
-#include "opengl.h"
-#include "shader.h"
 #include "sound.h"
-#include "netplay.h"
-#include "cheat.h"
 #include "fps.h"
 #include "debugger.h"
 #include "help.h"
@@ -54,7 +50,6 @@
 #include "remote.h"
 #include "ers.h"
 #include "rmdui.h"
-#include <mednafen/qtrecord.h>
 #include <mednafen/tests.h>
 #include <mednafen/MemoryStream.h>
 #include <mednafen/file.h>
@@ -124,12 +119,6 @@ static const MDFNSetting DriverSettings[] =
   { "input.joystick.axis_threshold", MDFNSF_NOFLAGS, gettext_noop("Analog axis binary press detection threshold."), gettext_noop("Threshold for detecting a digital-like \"button\" press on analog axis, in percent."), MDFNST_FLOAT, "75", "0", "100" },
   { "input.autofirefreq", MDFNSF_NOFLAGS, gettext_noop("Auto-fire frequency."), gettext_noop("Auto-fire frequency = GameSystemFrameRateHz / (value + 1)"), MDFNST_UINT, "3", "0", "1000" },
   { "input.ckdelay", MDFNSF_NOFLAGS, gettext_noop("Dangerous key action delay."), gettext_noop("The length of time, in milliseconds, that a button/key corresponding to a \"dangerous\" command like power, reset, exit, etc. must be pressed before the command is executed."), MDFNST_UINT, "0", "0", "99999" },
-
-  { "netplay.host", MDFNSF_NOFLAGS, gettext_noop("Server hostname."), NULL, MDFNST_STRING, "netplay.fobby.net" },
-  { "netplay.port", MDFNSF_NOFLAGS, gettext_noop("Server port."), NULL, MDFNST_UINT, "4046", "1", "65535" },
-  { "netplay.console.font", MDFNSF_NOFLAGS, gettext_noop("Font for netplay chat console."), NULL, MDFNST_ENUM, "9x18", NULL, NULL, NULL, NULL, FontSize_List },
-  { "netplay.console.scale", MDFNSF_NOFLAGS, gettext_noop("Netplay chat console text scale factor."), gettext_noop("A value of 0 enables auto-scaling."), MDFNST_UINT, "1", "0", "16" },
-  { "netplay.console.lines", MDFNSF_NOFLAGS, gettext_noop("Height of chat console, in lines."), NULL, MDFNST_UINT, "5", "5", "64" },
 
   { "video.frameskip", MDFNSF_NOFLAGS, gettext_noop("Enable frameskip during emulation rendering."), 
 					gettext_noop("Disable for rendering code performance testing."), MDFNST_BOOL, "1" },
@@ -238,8 +227,6 @@ static MDFN_Mutex *StdoutMutex = NULL;
 static bool sc_blit_timesync;
 
 static char *soundrecfn=0;	/* File name of sound recording. */
-
-static char *qtrecfn = NULL;
 
 static char *DrBaseDirectory;
 
@@ -685,7 +672,6 @@ static int DoArgs(int argc, char *argv[], char **filename)
 	 { "force_module", _("Force usage of specified emulation module."), 0, &force_module_arg, SUBSTYPE_STRING_ALLOC },
 
 	 { "soundrecord", _("Record sound output to the specified filename in the MS WAV format."), 0,&soundrecfn, SUBSTYPE_STRING_ALLOC },
-	 { "qtrecord", _("Record video and audio output to the specified filename in the QuickTime format."), 0, &qtrecfn, SUBSTYPE_STRING_ALLOC }, // TODOC: Video recording done without filtering applied.
 
 	 { "dump_settings_def", _("Dump settings definition data to specified file."), 0, &dsfn, SUBSTYPE_STRING_ALLOC },
 	 { "dump_modules_def", _("Dump modules definition data to specified file."), 0, &dmfn, SUBSTYPE_STRING_ALLOC },
@@ -833,25 +819,10 @@ static int LoadGame(const char *force_module, const char *path)
 
         if(MDFN_GetSettingB("autosave"))
 	 MDFNI_LoadState(NULL, "mca");
-
-	if(netconnect)
-	 MDFNI_NetplayConnect();
-
+	 
 	ers.SetEmuClock(CurGame->MasterClock >> 32);
 
 	Debugger_Init();
-
-	if(qtrecfn)
-	{
-	// MDFNI_StartAVRecord() needs to be called after MDFNI_Load(Game/CD)
-         if(!MDFNI_StartAVRecord(qtrecfn, Sound_GetRate()))
-	 {
-	  free(qtrecfn);
-	  qtrecfn = NULL;
-
-	  return(0);
-	 }
-	}
 
         if(soundrecfn)
         {
@@ -890,16 +861,11 @@ int CloseGame(void)
 
 	MDFND_WaitThread(GameThread, NULL);
 
-        if(qtrecfn)	// Needs to be before MDFNI_Closegame() for now
-         MDFNI_StopAVRecord();
-
         if(soundrecfn)
          MDFNI_StopWAVRecord();
 
 	if(MDFN_GetSettingB("autosave"))
 	 MDFNI_SaveState(NULL, "mca", NULL, NULL, NULL);
-
-	MDFNI_NetplayDisconnect();
 
 	Debugger_Kill();
 
@@ -988,8 +954,6 @@ int GameLoop(void *arg)
 	 if(Sound_NeedReInit())
 	  GT_ReinitSound();
 
-	 if(MDFNDnetplay && !(NoWaiting & 0x2))	// TODO: Hacky, clean up.
-	  ers.SetETtoRT();
 	 //
 	 //
 	 fskip = ers.NeedFrameSkip();
@@ -1118,8 +1082,6 @@ int GameLoop(void *arg)
             do_flip = MDFND_Update(fskip ? -1 : SoftFB_BackBuffer, sound, ssize);
 
 	   FPS_UpdateCalc();
-
-	   Netplay_GT_CheckPendingLine();
 
            if((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused)
 	   {
@@ -1342,11 +1304,7 @@ void PumpWrap(void)
  SDL_Event gtevents_temp[gtevents_size];
  int numevents = 0;
 
- bool NITI;
-
- NITI = Netplay_IsTextInput();
-
- if(Debugger_IsActive() || NITI || CheatIF_Active() || Help_IsActive())
+ if( Help_IsActive())
  {
   if(!krepeat)
    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
@@ -1366,10 +1324,6 @@ void PumpWrap(void)
 
  while(SDL_PollEvent(&event))
  {
-  if(CheatIF_Active())
-   CheatIF_MT_EventHook(&event);
-
-  NetplayEventHook(&event);
 
   /* Handle the event, and THEN hand it over to the GUI. Order is important due to global variable mayhem(CEVT_TOGGLEFS. */
   switch(event.type)
@@ -1394,12 +1348,6 @@ void PumpWrap(void)
 		 case CEVT_SET_STATE_STATUS: MT_SetStateStatus((StateStatusStruct *)event.user.data1); break;
                  case CEVT_SET_MOVIE_STATUS: MT_SetMovieStatus((StateStatusStruct *)event.user.data1); break;
 		 case CEVT_WANT_EXIT:
-		     if(!Netplay_TryTextExit())
-		     {
-		      SDL_Event evt;
-		      evt.quit.type = SDL_QUIT;
-		      SDL_PushEvent(&evt);
-		     }
 		     break;
 	         case CEVT_SET_GRAB_INPUT:
                          SDL_WM_GrabInput(*(uint8 *)event.user.data1 ? SDL_GRAB_ON : SDL_GRAB_OFF);
@@ -2030,33 +1978,7 @@ static void UpdateSoundSync(int16 *Buffer, uint32 Count)
    //printf("NW C to M; count=%d, max=%d\n", Count, max);
    Count = cw;
   }
-  else if(MDFNDnetplay)
-  {
-   //
-   // Cheap code to fix sound buffer underruns due to accumulation of time error during netplay.
-   //
-   uint32 dw = 0;
 
-   if(cw >= (Count * 7 / 4)) // || cw >= Sound_BufferSize())
-    dw = cw - std::min<uint32>(cw, Count);
-
-   if(dw)
-   {
-    int16 zbuf[128 * 2];	// *2 for stereo case.
-
-    //printf("DW: %u\n", dw);
-
-    memset(zbuf, 0, sizeof(zbuf));
-
-    while(dw != 0)
-    {
-     uint32 wti = std::min<int>(128, dw);
-     Sound_Write(zbuf, wti);
-     dw -= wti;
-    }
-    NeedETtoRT = true;
-   }
-  }
 
   Sound_Write(Buffer, Count);
 
@@ -2067,7 +1989,7 @@ static void UpdateSoundSync(int16 *Buffer, uint32 Count)
  {
   bool nothrottle = MDFN_GetSettingB("nothrottle");
 
-  if(!NoWaiting && !nothrottle && GameThreadRun && !MDFNDnetplay)
+  if(!NoWaiting && !nothrottle && GameThreadRun)
    ers.Sync();
  }
 }

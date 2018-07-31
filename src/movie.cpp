@@ -26,7 +26,6 @@
 #include "state.h"
 #include "general.h"
 #include "video.h"
-#include "netplay.h"
 #include "movie.h"
 #include "state.h"
 
@@ -87,11 +86,6 @@ void MDFNI_SaveMovie(char *fname, const MDFN_Surface *surface, const MDFN_Rect *
   if(!MDFNGameInfo->StateAction)
   {
    throw MDFN_Error(0, _("Module \"%s\" doesn't support save states."), MDFNGameInfo->shortname);
-  }
-
-  if(MDFNnetplay && (MDFNGameInfo->SaveStateAltersState == true))
-  {
-   throw MDFN_Error(0, _("Module %s is not compatible with manual movie save starting/stopping during netplay."), MDFNGameInfo->shortname);
   }
 
   if(ActiveMovieMode == MOVIE_PLAYING)	/* Can't interrupt playback.*/
@@ -165,10 +159,6 @@ void MDFNI_LoadMovie(char *fname)
    throw MDFN_Error(0, _("Module \"%s\" doesn't support save states."), MDFNGameInfo->shortname);
   }
 
-  if(MDFNnetplay)
-  {
-   throw MDFN_Error(0, _("Can't play movies during netplay."));
-  }
 
   if(ActiveMovieMode == MOVIE_RECORDING)	/* Can't interrupt recording. */
   {
@@ -219,16 +209,7 @@ void MDFNMOV_ProcessInput(uint8 *PortData[], uint32 PortLen[], int NumPorts) noe
 
    while((t = ActiveMovieStream->get_char()) >= 0 && t)
    {
-    if(t == MDFNNPCMD_LOADSTATE)
-     MDFNSS_LoadSM(ActiveMovieStream, false);
-    else if(t == MDFNNPCMD_SET_MEDIA)
-    {
-     uint8 buf[4 * 4];
-     ActiveMovieStream->read(buf, sizeof(buf));
-     MDFN_UntrustedSetMedia(MDFN_de32lsb(&buf[0]), MDFN_de32lsb(&buf[4]), MDFN_de32lsb(&buf[8]), MDFN_de32lsb(&buf[12]));
-    }
-    else
-     MDFN_DoSimpleCommand(t);
+
    }
 
    if(t < 0)	// EOF
@@ -283,7 +264,6 @@ void MDFNMOV_RecordState(void) noexcept
 {
  try
  {
-  ActiveMovieStream->put_u8(MDFNNPCMD_LOADSTATE);
   MDFNSS_SaveSM(ActiveMovieStream, false);
  }
  catch(std::exception &e)

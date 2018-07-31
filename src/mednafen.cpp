@@ -22,8 +22,6 @@
 #include	<unistd.h>
 #include	<trio/trio.h>
 
-#include	"netplay.h"
-#include	"netplay-driver.h"
 #include	"general.h"
 #include	<mednafen/string/string.h>
 
@@ -39,7 +37,6 @@
 #include	"compress/minilzo.h"
 #include	"tests.h"
 #include	"video/tblur.h"
-#include	"qtrecord.h"
 #include	<mednafen/hash/md5.h>
 #include	<mednafen/MemoryStream.h>
 #include	<mednafen/Time.h>
@@ -57,19 +54,6 @@ static const char *CSD_tblur = gettext_noop("Enable video temporal blur(50/50 pr
 static const char *CSD_tblur_accum = gettext_noop("Accumulate color data rather than discarding it.");
 static const char *CSD_tblur_accum_amount = gettext_noop("Blur amount in accumulation mode, specified in percentage of accumulation buffer to mix with the current frame.");
 
-static const MDFNSetting_EnumList VCodec_List[] =
-{
- { "raw", (int)QTRecord::VCODEC_RAW, "Raw",
-	gettext_noop("A fast codec, computationally, but will cause enormous file size and may exceed your storage medium's sustained write rate.") },
-
- { "cscd", (int)QTRecord::VCODEC_CSCD, "CamStudio Screen Codec",
-	gettext_noop("A good balance between performance and compression ratio.") },
-
- { "png", (int)QTRecord::VCODEC_PNG, "PNG",
-	gettext_noop("Has a better compression ratio than \"cscd\", but is much more CPU intensive.  Use for compatibility with official QuickTime in cases where you have insufficient disk space for \"raw\".") },
-
- { NULL, 0 },
-};
 
 static const MDFNSetting_EnumList Deinterlacer_List[] =
 {
@@ -84,11 +68,6 @@ static const char* const fname_extra = gettext_noop("See fname_format.txt for mo
 
 static const MDFNSetting MednafenSettings[] =
 {
-  { "netplay.password", MDFNSF_NOFLAGS, gettext_noop("Server password."), gettext_noop("Password to connect to the netplay server."), MDFNST_STRING, "" },
-  { "netplay.localplayers", MDFNSF_NOFLAGS, gettext_noop("Local player count."), gettext_noop("Number of local players for network play.  This number is advisory to the server, and the server may assign fewer players if the number of players requested is higher than the number of controllers currently available."), MDFNST_UINT, "1", "0", "16" },
-  { "netplay.nick", MDFNSF_NOFLAGS, gettext_noop("Nickname."), gettext_noop("Nickname to use for network play chat."), MDFNST_STRING, "" },
-  { "netplay.gamekey", MDFNSF_NOFLAGS, gettext_noop("Key to hash with the MD5 hash of the game."), NULL, MDFNST_STRING, "" },
-
   { "srwframes", MDFNSF_NOFLAGS, gettext_noop("Number of frames to keep states for when state rewinding is enabled."), 
 	gettext_noop("WARNING: Setting this to a large value may cause excessive RAM usage in some circumstances, such as with games that stream large volumes of data off of CDs."), MDFNST_UINT, "600", "10", "99999" },
 
@@ -115,12 +94,6 @@ static const MDFNSetting MednafenSettings[] =
 
   { "filesys.state_comp_level", MDFNSF_NOFLAGS, gettext_noop("Save state file compression level."), gettext_noop("gzip/deflate compression level for save states saved to files.  -1 will disable gzip compression and wrapping entirely."), MDFNST_INT, "6", "-1", "9" },
 
-
-  { "qtrecord.w_double_threshold", MDFNSF_NOFLAGS, gettext_noop("Double the raw image's width if it's below this threshold."), NULL, MDFNST_UINT, "384", "0", "1073741824" },
-  { "qtrecord.h_double_threshold", MDFNSF_NOFLAGS, gettext_noop("Double the raw image's height if it's below this threshold."), NULL, MDFNST_UINT, "256", "0", "1073741824" },
-
-  { "qtrecord.vcodec", MDFNSF_NOFLAGS, gettext_noop("Video codec to use."), NULL, MDFNST_ENUM, "cscd", NULL, NULL, NULL, NULL, VCodec_List },
-
   { "video.deinterlacer", MDFNSF_CAT_VIDEO, gettext_noop("Deinterlacer to use for interlaced video."), NULL, MDFNST_ENUM, "weave", NULL, NULL, NULL, SettingChanged, Deinterlacer_List },
 
   { NULL }
@@ -142,14 +115,6 @@ static const MDFNSetting RenamedSettings[] =
  { "soundvol", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS     , "sound.volume"      },
  { "soundbufsize", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS , "sound.buffer_time" },
 
- { "nethost", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "netplay.host"   },
- { "netport", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "netplay.port"   },
- { "netpassword", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS     , "netplay.password"},
- { "netlocalplayers", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS , "netplay.localplayers" },
- { "netnick", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "netplay.nick"   },
- { "netgamekey", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS      , "netplay.gamekey"        },
- { "netsmallfont", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS    , "netplay.smallfont" },
-
  { "frameskip", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS       , "video.frameskip" },
  { "vdriver", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "video.driver" },
  { "glvsync", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "video.glvsync" },
@@ -165,7 +130,6 @@ static const MDFNSetting RenamedSettings[] =
 
  { "snes_faust.spexf",	       MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS         , "snes_faust.spex" },
 
- { "netplay.smallfont",		MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS	, "netplay.console.font" },
 
  { "cdplay.pixshader",		MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS	, "cdplay.shader" },
  { "demo.pixshader",		MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS	, "demo.shader" },
@@ -201,7 +165,6 @@ static uint32 PortDataLen[16];
 
 MDFNGI *MDFNGameInfo = NULL;
 
-static QTRecord *qtrecorder = NULL;
 static WAVRecord *wavrecorder = NULL;
 static Fir_Resampler<16> ff_resampler;
 static double LastSoundMultiplier;
@@ -246,64 +209,11 @@ bool MDFNI_StartWAVRecord(const char *path, double SoundRate)
 
 bool MDFNI_StartAVRecord(const char *path, double SoundRate)
 {
- try
- {
-  QTRecord::VideoSpec spec;
-
-  memset(&spec, 0, sizeof(spec));
-
-  spec.SoundRate = SoundRate;
-  spec.SoundChan = MDFNGameInfo->soundchan;
-  spec.VideoWidth = MDFNGameInfo->lcm_width;
-  spec.VideoHeight = MDFNGameInfo->lcm_height;
-  spec.VideoCodec = MDFN_GetSettingI("qtrecord.vcodec");
-  spec.MasterClock = MDFNGameInfo->MasterClock;
-
-  if(spec.VideoWidth < MDFN_GetSettingUI("qtrecord.w_double_threshold"))
-   spec.VideoWidth *= 2;
-
-  if(spec.VideoHeight < MDFN_GetSettingUI("qtrecord.h_double_threshold"))
-   spec.VideoHeight *= 2;
-
-
-  spec.AspectXAdjust = ((double)MDFNGameInfo->nominal_width * 2) / spec.VideoWidth;
-  spec.AspectYAdjust = ((double)MDFNGameInfo->nominal_height * 2) / spec.VideoHeight;
-
-  MDFN_printf("\n");
-  MDFN_printf(_("Starting QuickTime recording to file \"%s\":\n"), path);
-  MDFN_indent(1);
-  MDFN_printf(_("Video width: %u\n"), spec.VideoWidth);
-  MDFN_printf(_("Video height: %u\n"), spec.VideoHeight);
-  MDFN_printf(_("Video codec: %s\n"), MDFN_GetSettingS("qtrecord.vcodec").c_str());
-
-  if(spec.SoundRate && spec.SoundChan)
-  {
-   MDFN_printf(_("Sound rate: %u\n"), std::min<uint32>(spec.SoundRate, 64000));
-   MDFN_printf(_("Sound channels: %u\n"), spec.SoundChan);
-  }
-  else
-   MDFN_printf(_("Sound: Disabled\n"));
-
-  MDFN_indent(-1);
-  MDFN_printf("\n");
-
-  qtrecorder = new QTRecord(path, spec);
- }
- catch(std::exception &e)
- {
-  MDFND_PrintError(e.what());
-  return(false);
- }
  return(true);
 }
 
 void MDFNI_StopAVRecord(void)
 {
- if(qtrecorder)
- {
-  delete qtrecorder;
-  qtrecorder = NULL;
- }
 }
 
 void MDFNI_StopWAVRecord(void)
@@ -319,7 +229,6 @@ void MDFNI_CloseGame(void)
 {
  if(MDFNGameInfo)
  {
-  MDFNI_NetplayDisconnect();
 
   MDFNSRW_End();
   MDFNMOV_Stop();
@@ -450,8 +359,6 @@ extern MDFNGI EmulatedWSwan;
 extern MDFNGI EmulatedSMS, EmulatedGG;
 #endif
 
-extern MDFNGI EmulatedCDPlay;
-extern MDFNGI EmulatedDEMO;
 
 std::vector<MDFNGI *> MDFNSystems;
 static std::list<MDFNGI *> MDFNSystemsPrio;
@@ -1282,8 +1189,6 @@ bool MDFNI_InitializeModules(void)
   &EmulatedGG,
   #endif
 
-  &EmulatedCDPlay,
-  &EmulatedDEMO
  };
  assert(MEDNAFEN_VERSION_NUMERIC >= 0x00094100);
 
@@ -1454,14 +1359,6 @@ static void ProcessAudio(EmulateSpecStruct *espec)
   }
 
 
-  if(qtrecorder && (volume_save != 1 || multiplier_save != 1))
-  {
-   int32 orig_size = SoundBufPristine.size();
-
-   SoundBufPristine.resize(orig_size + SoundBufSize * MDFNGameInfo->soundchan);
-   for(int i = 0; i < SoundBufSize * MDFNGameInfo->soundchan; i++)
-    SoundBufPristine[orig_size + i] = SoundBuf[i];
-  }
 
   try
   {
@@ -1570,7 +1467,6 @@ static void ProcessAudio(EmulateSpecStruct *espec)
 
 void MDFN_MidSync(EmulateSpecStruct *espec)
 {
- if(!MDFNnetplay)
  {
   ProcessAudio(espec);
 
@@ -1630,7 +1526,7 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
 
  // We want to record movies without any dropped video frames and without fast-forwarding sound distortion and without custom volume.
  // The same goes for WAV recording(sans the dropped video frames bit :b).
- if(qtrecorder || wavrecorder)
+ if( wavrecorder)
  {
   multiplier_save = espec->soundmultiplier;
   espec->soundmultiplier = 1;
@@ -1642,37 +1538,17 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
  if(MDFNGameInfo->TransformInput)
   MDFNGameInfo->TransformInput();
 
- Netplay_Update(PortDevice, PortData, PortDataLen);
-
  MDFNMOV_ProcessInput(PortData, PortDataLen, MDFNGameInfo->PortInfo.size());
-
- if(qtrecorder)
-  espec->skip = 0;
 
  if(TBlur_IsOn())
   espec->skip = 0;
 
- if(espec->NeedRewind)
- {
-  if(MDFNnetplay)
-  {
-   espec->NeedRewind = false;
-   MDFN_DispMessage(_("Can't rewind during netplay."));
-  }
- }
-
  // Don't even save states with state rewinding if netplay is enabled, it will degrade netplay performance, and can cause
  // desynchs with some emulation(IE SNES based on bsnes).
 
- if(MDFNnetplay)
-  espec->NeedSoundReverse = false;
- else
   espec->NeedSoundReverse = MDFNSRW_Frame(espec->NeedRewind);
 
  MDFNGameInfo->Emulate(espec);
-
- if(MDFNnetplay)
-  Netplay_PostProcess(PortDevice, PortData, PortDataLen);
 
  //
  // Sanity checks
@@ -1711,34 +1587,6 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
   PrevInterlaced = false;
 
  ProcessAudio(espec);
-
- if(qtrecorder)
- {
-  int16 *sb_backup = espec->SoundBuf;
-  int32 sbs_backup = espec->SoundBufSize;
-
-  if(SoundBufPristine.size())
-  {
-   espec->SoundBuf = &SoundBufPristine[0];
-   espec->SoundBufSize = SoundBufPristine.size() / MDFNGameInfo->soundchan;
-  }
-
-  try
-  {
-   qtrecorder->WriteFrame(espec->surface, espec->DisplayRect, espec->LineWidths, espec->SoundBuf, espec->SoundBufSize, espec->MasterCycles);
-  }
-  catch(std::exception &e)
-  {
-   MDFND_PrintError(e.what());
-   delete qtrecorder;
-   qtrecorder = NULL;
-  }
-
-  SoundBufPristine.clear();
-
-  espec->SoundBuf = sb_backup;
-  espec->SoundBufSize = sbs_backup;
- }
 
  if(TBlur_IsOn())
   TBlur_Run(espec);
@@ -1911,9 +1759,6 @@ void MDFN_DoSimpleCommand(int cmd)
 
 void MDFN_QSimpleCommand(int cmd)
 {
- if(MDFNnetplay)
-  NetplaySendCommand(cmd, 0);
- else
  {
   if(!MDFNMOV_IsPlaying())
   {
@@ -2031,7 +1876,7 @@ bool MDFNI_SetMedia(uint32 drive_idx, uint32 state_idx, uint32 media_idx, uint32
 {
  assert(MDFNGameInfo);
 
- if(MDFNnetplay || MDFNMOV_IsRecording())
+ if( MDFNMOV_IsRecording())
  {
   uint8 buf[4 * 4];
 
@@ -2039,15 +1884,9 @@ bool MDFNI_SetMedia(uint32 drive_idx, uint32 state_idx, uint32 media_idx, uint32
   MDFN_en32lsb(&buf[0x4], state_idx);
   MDFN_en32lsb(&buf[0x8], media_idx);
   MDFN_en32lsb(&buf[0xC], orientation_idx);
-
-  if(MDFNnetplay)
-   NetplaySendCommand(MDFNNPCMD_SET_MEDIA, sizeof(buf), buf);
-
-  if(MDFNMOV_IsRecording())
-   MDFNMOV_AddCommand(MDFNNPCMD_SET_MEDIA, sizeof(buf), buf);
  }
 
- if(!MDFNnetplay && !MDFNMOV_IsPlaying())
+ if(!MDFNMOV_IsPlaying())
   return MDFN_UntrustedSetMedia(drive_idx, state_idx, media_idx, orientation_idx);
  else
   return false;

@@ -26,8 +26,6 @@
 #include "sound.h"
 #include "video.h"
 #include "Joystick.h"
-#include "netplay.h"
-#include "cheat.h"
 #include "fps.h"
 #include "debugger.h"
 #include "help.h"
@@ -479,11 +477,7 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
 
 static void IncSelectedDevice(unsigned int port)
 {
- if(MDFNDnetplay)
- {
-  MDFN_DispMessage(_("Cannot change input device during netplay."));
- }
- else if(RewindState)
+  if(RewindState)
  {
   MDFN_DispMessage(_("Cannot change input device while state rewinding is active."));
  }
@@ -682,7 +676,6 @@ static const COKE CKeys[_CK_COUNT]	=
 	{ MK_CK(BACKSPACE), "state_rewind", false, 1, gettext_noop("Rewind") },
 	{ MK_CK_ALT(o), "rotate_screen", false, 1, gettext_noop("Rotate screen") },
 
-	{ MK_CK(t), "togglenetview", false, 1, gettext_noop("Toggle netplay console")},
 	{ MK_CK_ALT(a), "advance_frame", false, 1, gettext_noop("Advance frame") },
 	{ MK_CK_ALT(r), "run_normal", false, 1, gettext_noop("Return to normal mode after advancing frames") },
 	{ MK_CK_ALT(c), "togglecheatview", true, 1, gettext_noop("Toggle cheat console") },
@@ -1012,12 +1005,6 @@ static void DoKeyStateZeroing(void)
    keys[SDLK_F14] = keys_untouched[SDLK_F14];
    keys[SDLK_F15] = keys_untouched[SDLK_F15];
   }
-  else if(Netplay_IsTextInput() || CheatIF_Active())
-  {
-   memset(keys, 0, sizeof(keys)); // This effectively disables keyboard input, but still
-                                   // allows physical joystick input when in the chat mode.
-   NPCheatDebugKeysGrabbed = true;
-  }
   else if(InputGrab)
   {
    for(unsigned int x = 0; x < CurGame->PortInfo.size(); x++)
@@ -1134,21 +1121,6 @@ static void CheckCommandKeys(void)
    MDFNI_DispMessage(_("Input grabbing: %s"), InputGrab ? _("On") : _("Off"));
   }
 
-  if(!CheatIF_Active() && !MDFNDnetplay)
-  {
-   if(CK_Check(CK_TOGGLE_DEBUGGER))
-   {
-    Debugger_GT_Toggle();
-   }
-  }
-
-  if(!Debugger_IsActive() && !MDFNDnetplay)
-  {
-   if(CK_Check(CK_TOGGLECHEATVIEW))
-   {
-    CheatIF_GT_Show(!CheatIF_Active());
-   }
-  }
 
   if(CK_Check(CK_EXIT))
   {
@@ -1158,27 +1130,7 @@ static void CheckCommandKeys(void)
   if(CK_Check(CK_TOGGLE_HELP))
    Help_Toggle();
 
-  if(!CheatIF_Active() && !Debugger_IsActive())
-  {
-   if(CK_Check(CK_TOGGLENETVIEW))
-   {
-    Netplay_ToggleTextView();
-   }
-  }
 
-  if(CK_Check(CK_TOGGLE_CHEAT_ACTIVE))
-  {
-   bool isactive = MDFN_GetSettingB("cheats");
-   
-   isactive = !isactive;
-   
-   MDFNI_SetSettingB("cheats", isactive);
-
-   if(isactive)
-    MDFNI_DispMessage(_("Application of cheats enabled."));
-   else
-    MDFNI_DispMessage(_("Application of cheats disabled."));
-  }
 
   if(CK_Check(CK_TOGGLE_FPS_VIEW))
    FPS_ToggleView();
@@ -1191,26 +1143,6 @@ static void CheckCommandKeys(void)
   if(!CurGame)
 	return;
   
-  if(!MDFNDnetplay)
-  {
-   bool ck_af = CK_Check(CK_ADVANCE_FRAME);
-   bool ck_rn = CK_Check(CK_RUN_NORMAL);
-   bool iifa = IsInFrameAdvance();
-
-   //
-   // Change the order of processing based on being in frame advance mode to allow for the derivation of single-key (un)pause functionality.
-   //
-
-   if(ck_af & iifa)
-    DoFrameAdvance();
-
-   if(ck_rn)
-    DoRunNormal();
-
-   if(ck_af & !iifa)
-    DoFrameAdvance();
-  }
-
   if(!Debugger_IsActive()) // We don't want to start button configuration when the debugger is active!
   {
    for(unsigned i = 0; i < 12; i++)

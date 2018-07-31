@@ -25,14 +25,9 @@
 #include <trio/trio.h>
 
 #include "video.h"
-#include "opengl.h"
-#include "shader.h"
 #include "nongl.h"
-#include "overlay.h"
 
 #include "icon.h"
-#include "netplay.h"
-#include "cheat.h"
 
 #include "nnx.h"
 #include "debugger.h"
@@ -134,20 +129,15 @@ enum
 static const MDFNSetting_EnumList VDriver_List[] =
 {
  // Legacy:
- { "0", VDRIVER_OPENGL },
- { "1", VDRIVER_SOFTSDL },
-
-
- { "opengl", VDRIVER_OPENGL, "OpenGL + SDL", gettext_noop("This output method is preferred, as all features are available with it.") },
+ { "0", VDRIVER_SOFTSDL },
  { "sdl", VDRIVER_SOFTSDL, "SDL Surface", gettext_noop("Slower with lower-quality scaling than OpenGL, but if you don't have hardware-accelerated OpenGL rendering, it will be faster than software OpenGL rendering. Bilinear interpolation not available. OpenGL shaders do not work with this output method, of course.") },
- { "overlay", VDRIVER_OVERLAY, "SDL Overlay", gettext_noop("As fast as OpenGL, perhaps faster in some situations, *if* it's hardware-accelerated. Scanline effects are not available. hq2x, hq3x, hq4x are not available. The OSD may be missing or glitchy. PSX emulation will not display properly. Bilinear interpolation can't be turned off. Harsh chroma subsampling blurring in some picture types.  If you use this output method, it is strongly recommended to use a special scaler with it, such as nn2x.") },
 
  { NULL, 0 },
 };
 
 static const MDFNSetting GlobalVideoSettings[] =
 {
- { "video.driver", MDFNSF_NOFLAGS, gettext_noop("Video output method/driver."), NULL, MDFNST_ENUM, "opengl", NULL, NULL, NULL, NULL, VDriver_List },
+ { "video.driver", MDFNSF_NOFLAGS, gettext_noop("Video output method/driver."), NULL, MDFNST_ENUM, "sdl", NULL, NULL, NULL, NULL, VDriver_List },
 
  { "video.fs", MDFNSF_NOFLAGS, gettext_noop("Enable fullscreen mode."), NULL, MDFNST_BOOL, "0", },
  { "video.glvsync", MDFNSF_NOFLAGS, gettext_noop("Attempt to synchronize OpenGL page flips to vertical retrace period."), 
@@ -218,32 +208,11 @@ static const MDFNSetting_EnumList Special_List[] =
 
 static const MDFNSetting_EnumList Shader_List[] =
 {
-    { "none",		SHADER_NONE,		gettext_noop("None/Disabled") },
-    { "autoip", 	SHADER_AUTOIP,		gettext_noop("Auto Interpolation"), gettext_noop("Will automatically interpolate on each axis if the corresponding effective scaling factor is not an integer.") },
-    { "autoipsharper",	SHADER_AUTOIPSHARPER,	gettext_noop("Sharper Auto Interpolation"), gettext_noop("Same as \"autoip\", but when interpolation is done, it is done in a manner that will reduce blurriness if possible.") },
-    { "scale2x", 	SHADER_SCALE2X,    	"Scale2x" },
-    { "sabr",		SHADER_SABR,		"SABR v3.0", gettext_noop("GPU-intensive.") },
-    { "ipsharper", 	SHADER_IPSHARPER,  	gettext_noop("Sharper bilinear interpolation.") },
-    { "ipxnoty", 	SHADER_IPXNOTY,    	gettext_noop("Linear interpolation on X axis only.") },
-    { "ipynotx", 	SHADER_IPYNOTX,    	gettext_noop("Linear interpolation on Y axis only.") },
-    { "ipxnotysharper", SHADER_IPXNOTYSHARPER, 	gettext_noop("Sharper version of \"ipxnoty\".") },
-    { "ipynotxsharper", SHADER_IPYNOTXSHARPER, 	gettext_noop("Sharper version of \"ipynotx\".") },
-
-    { "goat", 		SHADER_GOAT, 		gettext_noop("Simple approximation of a color TV CRT look."), gettext_noop("Intended for fullscreen modes with a vertical resolution of around 1000 to 1500 pixels.  Doesn't simulate halation and electron beam energy distribution nuances.") },
-
     { NULL, 0 },
 };
 
 static const MDFNSetting_EnumList GoatPat_List[] =
 {
-	{ "goatron",	ShaderParams::GOAT_MASKPAT_GOATRON,	gettext_noop("Goatron"), gettext_noop("Brightest.") },
-	{ "goattron",	ShaderParams::GOAT_MASKPAT_GOATRON },
-	{ "goatronprime",	ShaderParams::GOAT_MASKPAT_GOATRONPRIME },
-	{ "goattronprime",	ShaderParams::GOAT_MASKPAT_GOATRONPRIME },
-
-	{ "borg",	ShaderParams::GOAT_MASKPAT_BORG,	gettext_noop("Borg"), gettext_noop("Darkest.") },
-	{ "slenderman",	ShaderParams::GOAT_MASKPAT_SLENDERMAN,	gettext_noop("Slenderman"), gettext_noop("Spookiest?") },
-
 	{ NULL, 0 },
 };
 
@@ -339,27 +308,6 @@ void Video_MakeSettings(std::vector <MDFNSetting> &settings)
 
   BuildSystemSetting(&setting, sysname, "special", CSD_special, CSDE_special, MDFNST_ENUM, "none", NULL, NULL, NULL, NULL, Special_List);
   settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader", CSD_shader, CSDE_shader, MDFNST_ENUM, "none", NULL, NULL, NULL, NULL, Shader_List);
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.hdiv", gettext_noop("Constant RGB horizontal divergence."), nullptr, MDFNST_FLOAT, "0.50", "-2.00", "2.00");
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.vdiv", gettext_noop("Constant RGB vertical divergence."), nullptr, MDFNST_FLOAT, "0.50", "-2.00", "2.00");
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.pat", gettext_noop("Mask pattern."), nullptr, MDFNST_ENUM, "goatron", NULL, NULL, NULL, NULL, GoatPat_List);
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.tp", gettext_noop("Transparency of otherwise-opaque mask areas."), nullptr, MDFNST_FLOAT, "0.50", "0.00", "1.00");
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.fprog", gettext_noop("Force interlaced video to be treated as progressive."), gettext_noop("When disabled, the default, the \"video.deinterlacer\" setting is effectively ignored with respect to what appears on the screen.  When enabled, it may be prudent to disable the scanlines effect controlled by the *.goat.slen setting, or else the scanline effect may look objectionable."), MDFNST_BOOL, "0");
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "shader.goat.slen", gettext_noop("Enable scanlines effect."), nullptr, MDFNST_BOOL, "1");
-  settings.push_back(setting);
  }
 
  for(unsigned i = 0; i < sizeof(GlobalVideoSettings) / sizeof(GlobalVideoSettings[0]); i++)
@@ -377,15 +325,13 @@ typedef struct
         int stretch;
         int special;
         int scanlines;
-	ShaderType shader;
-	ShaderParams shader_params;
 } CommonVS;
 
 static CommonVS _video;
 static int _fullscreen;
 
 static bool osd_alpha_blend;
-static unsigned int vdriver = VDRIVER_OPENGL;
+static unsigned int vdriver = VDRIVER_SOFTSDL;
 
 static struct ScalerDefinition
 {
@@ -426,7 +372,6 @@ static int cur_xres, cur_yres, cur_flags;
 static ScalerDefinition *CurrentScaler = NULL;
 
 static SDL_Surface *screen = NULL;
-static OpenGL_Blitter *ogl_blitter = NULL;
 static SDL_Surface *IconSurface=NULL;
 
 static MDFN_Rect screen_dest_rect;
@@ -456,11 +401,6 @@ static void MarkNeedBBClear(void)
 static void ClearBackBuffer(void)
 {
  //printf("WOO: %u\n", Time::MonoMS());
- if(ogl_blitter)
- {
-  ogl_blitter->ClearBackBuffer();
- }
- else
  {
   // Don't use SDL_FillRect() on hardware surfaces, it's borked(causes a long wait) with DirectX.
   // ...on second thought, memset() is likely borked on PPC with hardware surface memory due to use of "dcbz" on uncachable memory. :(
@@ -505,14 +445,6 @@ void Video_Kill(void)
   HelpSurface = NULL;
  }
 
- if(ogl_blitter)
- {
-  delete ogl_blitter;
-  ogl_blitter = NULL;
- }
-
- if(vdriver == VDRIVER_OVERLAY)
-  OV_Kill();
 
  screen = NULL;
  VideoGI = NULL;
@@ -778,7 +710,6 @@ void Video_Init(MDFNGI *gi)
 
  const std::string special_string = MDFN_GetSettingS(snp + std::string("special"));
  const unsigned special_id = MDFN_GetSettingUI(snp + std::string("special"));
- const std::string goat_pat_string = MDFN_GetSettingS(snp + "shader.goat.pat");
 
  _fullscreen = MDFN_GetSettingB("video.fs");
  _video.xres = MDFN_GetSettingUI(snp + "xres");
@@ -792,14 +723,6 @@ void Video_Init(MDFNGI *gi)
  _video.scanlines = MDFN_GetSettingI(snp + "scanlines");
 
  _video.special = special_id;
-
- _video.shader = (ShaderType)MDFN_GetSettingI(snp + "shader");
- _video.shader_params.goat_hdiv = MDFN_GetSettingF(snp + "shader.goat.hdiv");
- _video.shader_params.goat_vdiv = MDFN_GetSettingF(snp + "shader.goat.vdiv");
- _video.shader_params.goat_pat = MDFN_GetSettingI(snp + "shader.goat.pat");
- _video.shader_params.goat_tp = MDFN_GetSettingF(snp + "shader.goat.tp");
- _video.shader_params.goat_slen = MDFN_GetSettingB(snp + "shader.goat.slen");
- _video.shader_params.goat_fprog = MDFN_GetSettingB(snp + "shader.goat.fprog");
 
  CurrentScaler = nullptr;
  for(auto& scaler : Scalers)
@@ -935,17 +858,6 @@ void Video_Init(MDFNGI *gi)
 
  //MDFN_printf(_("OpenGL: %s\n"), (cur_flags & SDL_OPENGL) ? _("Yes") : _("No"));
 
- if(cur_flags & SDL_OPENGL)
- {
-  MDFN_AutoIndent aindps;
-  char sp[128] = { 0 };
-
-  if(_video.shader == SHADER_GOAT)
-   trio_snprintf(sp, sizeof(sp), " (pat=%s, hdiv=%f, vdiv=%f, tp=%f, slen=%d, fprog=%d)",
-	goat_pat_string.c_str(), _video.shader_params.goat_hdiv, _video.shader_params.goat_vdiv, _video.shader_params.goat_tp, _video.shader_params.goat_slen, _video.shader_params.goat_fprog);
-
-  MDFN_printf(_("Shader: %s%s\n"), MDFN_GetSettingS(snp + "shader").c_str(), sp);
- }
 
  MDFN_printf(_("Fullscreen: %s\n"), _fullscreen ? _("Yes") : _("No"));
  MDFN_printf(_("Special Scaler: %s\n"), (special_id == NTVB_NONE) ? _("None") : special_string.c_str());
@@ -973,19 +885,7 @@ void Video_Init(MDFNGI *gi)
 
  int rs, gs, bs, as;
 
- if(cur_flags & SDL_OPENGL)
- {
-  try
-  {
-   ogl_blitter = new OpenGL_Blitter(_video.scanlines, _video.shader, _video.shader_params, screen->w, screen->h, &rs, &gs, &bs, &as);
-  }
-  catch(std::exception &e)
-  {
-   Video_Kill();
-   throw;
-  }
- }
- else
+
  {
   rs = screen->format->Rshift;
   gs = screen->format->Gshift;
@@ -1074,13 +974,6 @@ void Video_Init(MDFNGI *gi)
  for(int i = 0; i < 2; i++)
  {
   ClearBackBuffer();
-
-  if(cur_flags & SDL_OPENGL)
-  {
-   SDL_GL_SwapBuffers();
-   //ogl_blitter->HardSync();
-  }
-  else
    SDL_Flip(screen);
  }
 
@@ -1108,9 +1001,6 @@ void VideoShowMessage(char *text)
 
 void BlitRaw(MDFN_Surface *src, const MDFN_Rect *src_rect, const MDFN_Rect *dest_rect, int source_alpha)
 {
- if(ogl_blitter)
-  ogl_blitter->BlitRaw(src, src_rect, dest_rect, (source_alpha != 0) && osd_alpha_blend);
- else
  {
   SDL_to_MDFN_Surface_Wrapper m_surface(screen);
 
@@ -1194,27 +1084,7 @@ static void SubBlit(const MDFN_Surface *source_surface, const MDFN_Rect &src_rec
     uint8* screen_pixies = (uint8 *)bah_surface.pixels;
     uint32 screen_pitch = bah_surface.pitch32 << 2;
 
-    if(CurrentScaler->id == NTVB_SCALE4X || CurrentScaler->id == NTVB_SCALE3X || CurrentScaler->id == NTVB_SCALE2X)
-    {
-#ifdef WANT_FANCY_SCALERS
-     //
-     // scale2x and scale3x apparently can't handle source heights less than 2.
-     // scale4x, it's less than 4
-     //
-     // None can handle source widths less than 2.
-     //
-     if(eff_src_rect.w < 2 || eff_src_rect.h < 2 || (CurrentScaler->id == NTVB_SCALE4X && eff_src_rect.h < 4))
-     {
-      nnx(CurrentScaler->id - NTVB_SCALE2X + 2, eff_source_surface, eff_src_rect, &bah_surface, boohoo_rect);
-     }
-     else
-     {
-      uint8 *source_pixies = (uint8 *)eff_source_surface->pixels + eff_src_rect.x * sizeof(uint32) + eff_src_rect.y * eff_source_surface->pitchinpix * sizeof(uint32);
-      scale((CurrentScaler->id ==  NTVB_SCALE2X)?2:(CurrentScaler->id == NTVB_SCALE4X)?4:3, screen_pixies, screen_pitch, source_pixies, eff_source_surface->pitchinpix * sizeof(uint32), sizeof(uint32), eff_src_rect.w, eff_src_rect.h);
-     }
-#endif
-    }
-    else if(CurrentScaler->id == NTVB_NN2X || CurrentScaler->id == NTVB_NN3X || CurrentScaler->id == NTVB_NN4X)
+	if(CurrentScaler->id == NTVB_NN2X || CurrentScaler->id == NTVB_NN3X || CurrentScaler->id == NTVB_NN4X)
     {
      nnx(CurrentScaler->id - NTVB_NN2X + 2, eff_source_surface, eff_src_rect, &bah_surface, boohoo_rect);
     }
@@ -1222,87 +1092,8 @@ static void SubBlit(const MDFN_Surface *source_surface, const MDFN_Rect &src_rec
     {
      nnyx(CurrentScaler->id - NTVB_NNY2X + 2, eff_source_surface, eff_src_rect, &bah_surface, boohoo_rect);
     }
-#ifdef WANT_FANCY_SCALERS
-    else
+
     {
-     uint8 *source_pixies = (uint8 *)(eff_source_surface->pixels + eff_src_rect.x + eff_src_rect.y * eff_source_surface->pitchinpix);
-
-     if(CurrentScaler->id == NTVB_HQ2X)
-      hq2x_32(source_pixies, screen_pixies, eff_src_rect.w, eff_src_rect.h, eff_source_surface->pitchinpix * sizeof(uint32), screen_pitch);
-     else if(CurrentScaler->id == NTVB_HQ3X)
-      hq3x_32(source_pixies, screen_pixies, eff_src_rect.w, eff_src_rect.h, eff_source_surface->pitchinpix * sizeof(uint32), screen_pitch);
-     else if(CurrentScaler->id == NTVB_HQ4X)
-      hq4x_32(source_pixies, screen_pixies, eff_src_rect.w, eff_src_rect.h, eff_source_surface->pitchinpix * sizeof(uint32), screen_pitch);
-     else if(CurrentScaler->id == NTVB_2XSAI || CurrentScaler->id == NTVB_SUPER2XSAI || CurrentScaler->id == NTVB_SUPEREAGLE)
-     {
-      MDFN_Surface saisrc(NULL, eff_src_rect.w + 4, eff_src_rect.h + 4, eff_src_rect.w + 4, eff_source_surface->format);
-
-      for(int y = 0; y < 2; y++)
-      {
-       memcpy(saisrc.pixels + (y * saisrc.pitchinpix) + 2, (uint32 *)source_pixies, eff_src_rect.w * sizeof(uint32));
-       memcpy(saisrc.pixels + ((2 + y + eff_src_rect.h) * saisrc.pitchinpix) + 2, (uint32 *)source_pixies + (eff_src_rect.h - 1) * eff_source_surface->pitchinpix, eff_src_rect.w * sizeof(uint32));
-      }
-
-      for(int y = 0; y < eff_src_rect.h; y++)
-      {
-       memcpy(saisrc.pixels + ((2 + y) * saisrc.pitchinpix) + 2, (uint32*)source_pixies + y * eff_source_surface->pitchinpix, eff_src_rect.w * sizeof(uint32));
-       memcpy(saisrc.pixels + ((2 + y) * saisrc.pitchinpix) + (2 + eff_src_rect.w),
-	      saisrc.pixels + ((2 + y) * saisrc.pitchinpix) + (2 + eff_src_rect.w - 1), sizeof(uint32));
-      }
-
-      {
-       uint8 *saipix = (uint8 *)(saisrc.pixels + 2 * saisrc.pitchinpix + 2);
-       uint32 saipitch = saisrc.pitchinpix << 2;
-
-       if(CurrentScaler->id == NTVB_2XSAI)
-        _2xSaI32(saipix, saipitch, screen_pixies, screen_pitch, eff_src_rect.w, eff_src_rect.h);
-       else if(CurrentScaler->id == NTVB_SUPER2XSAI)
-        Super2xSaI32(saipix, saipitch, screen_pixies, screen_pitch, eff_src_rect.w, eff_src_rect.h);
-       else if(CurrentScaler->id == NTVB_SUPEREAGLE)
-        SuperEagle32(saipix, saipitch, screen_pixies, screen_pitch, eff_src_rect.w, eff_src_rect.h);
-      }
-     }
-
-     if(bah_surface.format.Rshift != real_rs || bah_surface.format.Gshift != real_gs || bah_surface.format.Bshift != real_bs)
-     {
-      uint32 *lineptr = bah_surface.pixels;
-
-      unsigned int srs = bah_surface.format.Rshift;
-      unsigned int sgs = bah_surface.format.Gshift;
-      unsigned int sbs = bah_surface.format.Bshift;
-      unsigned int drs = real_rs;
-      unsigned int dgs = real_gs;
-      unsigned int dbs = real_bs;
-
-      for(int y = 0; y < boohoo_rect.h; y++)
-      {
-       for(int x = 0; x < boohoo_rect.w; x++)
-       {
-        uint32 pixel = lineptr[x];
-        lineptr[x] = (((pixel >> srs) & 0xFF) << drs) | (((pixel >> sgs) & 0xFF) << dgs) | (((pixel >> sbs) & 0xFF) << dbs);
-       }
-       lineptr += bah_surface.pitchinpix;
-      }
-     }
-    }
-#endif
-
-    if(ogl_blitter)
-     ogl_blitter->Blit(&bah_surface, &boohoo_rect, &dest_rect, &eff_src_rect, InterlaceField, evideoip, CurGame->rotated);
-    else
-    {
-     if(OverlayOK)
-     {
-      SDL_Rect tr;
-
-      tr.x = dest_rect.x;
-      tr.y = dest_rect.y;
-      tr.w = dest_rect.w;
-      tr.h = dest_rect.h;
-
-      OV_Blit(&bah_surface, &boohoo_rect, &eff_src_rect, &tr, screen, 0, _video.scanlines, CurGame->rotated);
-     }
-     else
      {
       SDL_to_MDFN_Surface_Wrapper m_surface(screen);
 
@@ -1312,22 +1103,7 @@ static void SubBlit(const MDFN_Surface *source_surface, const MDFN_Rect &src_rec
    }
    else // No special scaler:
    {
-    if(ogl_blitter)
-     ogl_blitter->Blit(eff_source_surface, &eff_src_rect, &dest_rect, &eff_src_rect, InterlaceField, evideoip, CurGame->rotated);
-    else
     {
-     if(OverlayOK)
-     {
-      SDL_Rect tr;
-
-      tr.x = dest_rect.x;
-      tr.y = dest_rect.y;
-      tr.w = dest_rect.w;
-      tr.h = dest_rect.h;
-
-      OV_Blit(eff_source_surface, &eff_src_rect, &eff_src_rect, &tr, screen, overlay_softscale, _video.scanlines, CurGame->rotated);
-     }
-     else
      {
       SDL_to_MDFN_Surface_Wrapper m_surface(screen);
 
@@ -1368,7 +1144,7 @@ void BlitScreen(MDFN_Surface *msurface, const MDFN_Rect *DisplayRect, const int3
  OverlayOK = false;
  if(vdriver == VDRIVER_OVERLAY)
  {
-  bool osd_active = Help_IsActive() || SaveStatesActive() || CheatIF_Active() || Netplay_GetTextView() ||
+  bool osd_active = Help_IsActive() || SaveStatesActive() ||
 		   IsInternalMessageActive() || Debugger_IsActive();
 
   OverlayOK = (vdriver == VDRIVER_OVERLAY) && !take_ssnapshot && !osd_active && (!CurrentScaler || (CurrentScaler->id != NTVB_HQ2X && CurrentScaler->id != NTVB_HQ3X &&
@@ -1512,9 +1288,6 @@ void BlitScreen(MDFN_Surface *msurface, const MDFN_Rect *DisplayRect, const int3
 
    ib.reset(new MDFN_Surface(NULL, sr.w, sr.h, sr.w, MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as)));
 
-   if(ogl_blitter)
-    ogl_blitter->ReadPixels(ib.get(), &sr);
-   else
    {
     if(SDL_MUSTLOCK(screen))
      SDL_LockSurface(screen);
@@ -1608,16 +1381,6 @@ void BlitScreen(MDFN_Surface *msurface, const MDFN_Rect *DisplayRect, const int3
 
  DrawSaveStates(screen, exs, eys, real_rs, real_gs, real_bs, real_as);
 
- try
- {
-  CheatIF_MT_Draw(MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as), screen->w, screen->h);
-  Netplay_MT_Draw(MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as), screen->w, screen->h);
- }
- catch(std::exception& e)
- {
-  MDFN_DispMessage("%s", e.what());
- }
-
  BlitInternalMessage();
 
  if(!OverlayOK)
@@ -1637,17 +1400,11 @@ void BlitScreen(MDFN_Surface *msurface, const MDFN_Rect *DisplayRect, const int3
   FPS_DrawToScreen(screen, real_rs, real_gs, real_bs, real_as, fps_offsx, fps_offsy);
  }
 
- if(!(cur_flags & SDL_OPENGL))
  {
   if(!OverlayOK)
    SDL_Flip(screen);
  }
- else
- {
-  PumpWrap();
-  SDL_GL_SwapBuffers();
-  //ogl_blitter->HardSync();
- }
+
 }
 
 void Video_PtoV(const int in_x, const int in_y, int32 *out_x, int32 *out_y)

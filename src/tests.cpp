@@ -40,7 +40,6 @@
 #include <assert.h>
 #include <math.h>
 
-#include "psx/masmem.h"
 #include "general.h"
 
 #if defined(HAVE_FENV_H)
@@ -900,61 +899,6 @@ static void DoAlignmentChecks(void)
 #endif
 }
 
-static uint32 NO_INLINE NO_CLONE RunMASMemTests_DoomAndGloom(uint32 offset)
-{
- MultiAccessSizeMem<4, false> mt0;
-
- mt0.WriteU32(offset, 4);
- mt0.WriteU16(offset, 0);
- mt0.WriteU32(offset, mt0.ReadU32(offset) + 1);
-
- return mt0.ReadU32(offset);
-}
-
-static void RunMASMemTests(void)
-{
- // Little endian:
- {
-  MultiAccessSizeMem<4, false> mt0;
-
-  mt0.WriteU16(0, 0xDEAD);
-  mt0.WriteU32(0, 0xCAFEBEEF);
-  mt0.WriteU16(2, mt0.ReadU16(0));
-  mt0.WriteU8(1, mt0.ReadU8(0));
-  mt0.WriteU16(2, mt0.ReadU16(0));
-  mt0.WriteU32(0, mt0.ReadU32(0) + 0x13121111);
-
-  assert(mt0.ReadU16(0) == 0x0100 && mt0.ReadU16(2) == 0x0302);
-  assert(mt0.ReadU32(0) == 0x03020100);
- 
-  mt0.WriteU32(0, 0xB0B0AA55);
-  mt0.WriteU24(0, 0xDEADBEEF);
-  assert(mt0.ReadU32(0) == 0xB0ADBEEF);
-  assert(mt0.ReadU24(1) == 0x00B0ADBE);
- }
-
- // Big endian:
- {
-  MultiAccessSizeMem<4, true> mt0;
-
-  mt0.WriteU16(2, 0xDEAD);
-  mt0.WriteU32(0, 0xCAFEBEEF);
-  mt0.WriteU16(0, mt0.ReadU16(2));
-  mt0.WriteU8(2, mt0.ReadU8(3));
-  mt0.WriteU16(0, mt0.ReadU16(2));
-  mt0.WriteU32(0, mt0.ReadU32(0) + 0x13121111);
-
-  assert(mt0.ReadU16(2) == 0x0100 && mt0.ReadU16(0) == 0x0302);
-  assert(mt0.ReadU32(0) == 0x03020100);
- 
-  mt0.WriteU32(0, 0xB0B0AA55);
-  mt0.WriteU24(1, 0xDEADBEEF);
-  assert(mt0.ReadU32(0) == 0xB0ADBEEF);
-  assert(mt0.ReadU24(0) == 0x00B0ADBE);
- }
-
- assert(RunMASMemTests_DoomAndGloom(0) == 1);
-}
 
 
 void NO_INLINE NO_CLONE RunMiscEndianTests_Sub(uint32 v, volatile uint16* a)
@@ -2066,8 +2010,6 @@ bool MDFN_RunMathTests(void)
  TestRoundPow2();
 
  RunFPTests();
-
- RunMASMemTests();
 
  RunMiscEndianTests(0xAA010203, 0xBB030201);
 

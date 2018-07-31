@@ -29,7 +29,6 @@
 #include "general.h"
 #include "state.h"
 #include "movie.h"
-#include "netplay.h"
 #include "video.h"
 #include "video/resize.h"
 
@@ -753,10 +752,6 @@ bool MDFNI_SaveState(const char *fname, const char *suffix, const MDFN_Surface *
 
  try
  {
-  if(MDFNnetplay && (MDFNGameInfo->SaveStateAltersState == true))
-  {
-   throw MDFN_Error(0, _("Module %s is not compatible with manual state saving during netplay."), MDFNGameInfo->shortname);
-  }
 
   //
   //
@@ -790,9 +785,6 @@ bool MDFNI_SaveState(const char *fname, const char *suffix, const MDFN_Surface *
    MDFN_DispMessage(_("State %d save error: %s"), CurrentState, e.what());
   else
    MDFN_PrintError("%s", e.what());
-
-  if(MDFNnetplay)
-   MDFND_NetplayText(e.what(), false);
 
   ret = false;
  }
@@ -832,11 +824,6 @@ bool MDFNI_LoadState(const char *fname, const char *suffix) noexcept
    MDFNSS_LoadSM(&sm, false);
   }
 
-  if(MDFNnetplay)
-  {
-   NetplaySendState();
-  }
-
   if(MDFNMOV_IsRecording())
    MDFNMOV_RecordState();
 
@@ -855,8 +842,6 @@ bool MDFNI_LoadState(const char *fname, const char *suffix) noexcept
   else
    MDFN_PrintError("%s", e.what());
 
-  if(MDFNnetplay)
-   MDFND_NetplayText(e.what(), false);
 
   ret = false;
  }
