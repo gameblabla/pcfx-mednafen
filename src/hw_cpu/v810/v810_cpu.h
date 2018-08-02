@@ -143,7 +143,7 @@ class V810
  ~V810() MDFN_COLD;
 
  // Pass TRUE for vb_mode if we're emulating a VB-specific enhanced V810 CPU core
- bool Init(V810_Emu_Mode mode, bool vb_mode) MDFN_COLD;
+ bool Init(V810_Emu_Mode mode) MDFN_COLD;
  void Kill(void) MDFN_COLD;
 
  void SetInt(int level);
@@ -162,20 +162,18 @@ class V810
 
  INLINE void ResetTS(v810_timestamp_t new_base_timestamp)
  {
-  assert(next_event_ts > v810_timestamp);
-
-  next_event_ts -= (v810_timestamp - new_base_timestamp);
-  v810_timestamp = new_base_timestamp;
+	next_event_ts -= (v810_timestamp - new_base_timestamp);
+	v810_timestamp = new_base_timestamp;
  }
 
  INLINE void SetEventNT(const v810_timestamp_t timestamp)
  {
-  next_event_ts = timestamp;
+	next_event_ts = timestamp;
  }
 
  INLINE v810_timestamp_t GetEventNT(void)
  {
-  return(next_event_ts);
+	return(next_event_ts);
  }
 
  v810_timestamp_t Run(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t timestamp));
@@ -184,12 +182,7 @@ class V810
  void Reset(void) MDFN_COLD;
 
  void StateAction(StateMem *sm, const unsigned load, const bool data_only);
-
- #ifdef WANT_DEBUGGER
- void CheckBreakpoints(void (*callback)(int type, uint32 address, uint32 value, unsigned int len), uint16 MDFN_FASTCALL (*peek16)(const v810_timestamp_t, uint32), uint32 MDFN_FASTCALL (*peek32)(const v810_timestamp_t, uint32));
- void SetCPUHook(void (*newhook)(const v810_timestamp_t timestamp, uint32 PC), void (*new_ADDBT)(uint32, uint32, uint32));
- #endif
-
+ 
  enum
  {
   GSREG_PR = 0,

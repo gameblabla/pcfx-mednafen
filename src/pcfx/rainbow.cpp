@@ -295,42 +295,6 @@ static void decode(int32 *dct, const uint32 *QuantTable, const int32 dc, const H
 
 }
 
-#ifdef WANT_DEBUGGER
-uint32 RAINBOW_GetRegister(const unsigned int id, char* special, const uint32 special_len)
-{
- uint32 value = 0xDEADBEEF;
-
- if(id == RAINBOW_GSREG_RSCRLL)
-  value = HScroll;
- else if(id == RAINBOW_GSREG_RCTRL)
-  value = Control;
- else if(id == RAINBOW_GSREG_RNRY)
-  value = NullRunY;
- else if(id == RAINBOW_GSREG_RNRU)
-  value = NullRunU;
- else if(id == RAINBOW_GSREG_RNRV)
-  value = NullRunV;
- else if(id == RAINBOW_GSREG_RHSYNC)
-  value = HSync;
-
- return(value);
-}
-
-void RAINBOW_SetRegister(const unsigned int id, uint32 value)
-{
- if(id == RAINBOW_GSREG_RSCRLL)
-  HScroll = value & 0x1FF;
- else if(id == RAINBOW_GSREG_RCTRL)
-  Control = value;
- else if(id == RAINBOW_GSREG_RNRY)
-  NullRunY = value;
- else if(id == RAINBOW_GSREG_RNRU)
-  NullRunU = value;
- else if(id == RAINBOW_GSREG_RNRV)
-  NullRunV = value;
-}
-#endif
-
 static uint32 LastLine[256];
 static bool FirstDecode;
 static bool GarbageData;

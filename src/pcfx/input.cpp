@@ -131,34 +131,6 @@ void FXINPUT_SettingChanged(const char *name)
 }
 
 
-#ifdef WANT_DEBUGGER
-uint32 FXINPUT_GetRegister(const unsigned int id, char *special, const uint32 special_len)
-{
- uint32 value = 0xDEADBEEF;
-
- switch(id)
- {
-  case FXINPUT_GSREG_KPCTRL0:
-  case FXINPUT_GSREG_KPCTRL1:
-	value = control[id == FXINPUT_GSREG_KPCTRL1];
-	if(special)
-	{
-	 trio_snprintf(special, special_len, "Trigger: %d, MOD: %d, IOS: %s", value & 0x1, value & 0x2, (value & 0x4) ? "Input" : "Output");
-	}
-	break;
- }
-
- return value;
-}
-
-void FXINPUT_SetRegister(const unsigned int id, uint32 value)
-{
-
-
-}
-
-#endif
-
 static INLINE int32 min(int32 a, int32 b, int32 c)
 {
  int32 ret = a;
