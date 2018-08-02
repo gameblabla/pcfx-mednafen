@@ -259,10 +259,6 @@
 
             ADDCLOCK(3);
             RB_SETPC((P_REG[arg1] & 0xFFFFFFFE));
-	    if(RB_AccurateMode)
-	    {
-	     BRANCH_ALIGN_CHECK(PC);
-	    }
 	    RB_ADDBT(old_PC, RB_GETPC(), 0);
 	END_OP();
 
@@ -434,17 +430,9 @@
 	    (void)arg1;         // arg1 is unused.
 	    (void)arg2;         // arg2 is unused.
 
-	    if(VBMode)
-	    {
-             ADDCLOCK(1);
-             S_REG[PSW] = S_REG[PSW] &~ PSW_ID;
-	     RecalcIPendingCache();
-	    }
-	    else
 	    {
 	     ADDCLOCK(1);
 	     RB_DECPCBY2();
-             Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
              CHECK_HALTED();
 	    }
         END_OP();
@@ -453,19 +441,9 @@
             (void)arg1;         // arg1 is unused.
             (void)arg2;         // arg2 is unused.
 
-            if(VBMode)
-            {
-             ADDCLOCK(1);
-             S_REG[PSW] |= PSW_ID;
-	     IPendingCache = 0;
-	    }
-	    else
-            {
              ADDCLOCK(1);
 	     RB_DECPCBY2();
-             Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
              CHECK_HALTED();
-            }
 	END_OP();
 
 
@@ -474,10 +452,6 @@
 		{ 					\
 		 ADDCLOCK(3);				\
 		 RB_PCRELCHANGE(sign_9(arg1) & 0xFFFFFFFE);	\
-		 if(RB_AccurateMode)			\
-		 {					\
-		  BRANCH_ALIGN_CHECK(PC);		\
-		 }					\
 		 RB_ADDBT(old_PC, RB_GETPC(), 0);			\
 		}					\
 		else					\
@@ -550,10 +524,6 @@
 	BEGIN_OP(JR);
             ADDCLOCK(3);
             RB_PCRELCHANGE(sign_26(arg1) & 0xFFFFFFFE);
-            if(RB_AccurateMode)
-            {
-             BRANCH_ALIGN_CHECK(PC);
-            }
             RB_ADDBT(old_PC, RB_GETPC(), 0);
 	END_OP();
 
@@ -561,10 +531,6 @@
             ADDCLOCK(3);
 	    P_REG[31] = RB_GETPC() + 4;
             RB_PCRELCHANGE(sign_26(arg1) & 0xFFFFFFFE);
-            if(RB_AccurateMode)
-            {
-             BRANCH_ALIGN_CHECK(PC);
-            }
             RB_ADDBT(old_PC, RB_GETPC(), 0);
 	END_OP();
 
@@ -899,13 +865,6 @@
 
 	BEGIN_OP(DIVU);
             ADDCLOCK(36);
-            if(P_REG[arg1] == 0) // Divide by zero!
-	    {
-	     RB_DECPCBY2();
-	     Exception(ZERO_DIV_HANDLER_ADDR, ECODE_ZERO_DIV);
-	     CHECK_HALTED();
-            } 
-	    else 
 	    {
 	     // Careful here, since arg2 can be == 30
 	     uint32 quotient = (uint32)P_REG[arg2] / (uint32)P_REG[arg1];
@@ -927,13 +886,6 @@
              //}
 
             ADDCLOCK(38);
-            if((uint32)P_REG[arg1] == 0) // Divide by zero!
-	    { 
-	     RB_DECPCBY2();
-	     Exception(ZERO_DIV_HANDLER_ADDR, ECODE_ZERO_DIV);
-	     CHECK_HALTED();
-            } 
-	    else 
 	    {
                 if((P_REG[arg2]==0x80000000)&&(P_REG[arg1]==0xFFFFFFFF)) 
 		{
@@ -996,8 +948,6 @@
             (void)arg2;         // arg2 is unused.
 
             ADDCLOCK(15);
-
-	    Exception(TRAP_HANDLER_BASE + (arg1 & 0x10), ECODE_TRAP_BASE + (arg1 & 0x1F));
 	    CHECK_HALTED();
 	END_OP();
 
@@ -1093,25 +1043,10 @@
 
 	BEGIN_OP(INVALID);
 	    RB_DECPCBY2();
-	    if(!RB_AccurateMode)
 	    {
-	     RB_SETPC(RB_GETPC());
-	     if((uint32)(RB_RDOP(0, 0) >> 9) != opcode)
-	     {
-	      //printf("Trampoline: %08x %02x\n", RB_GETPC(), opcode >> 1);
-	     }
-	     else
-	     {
-              ADDCLOCK(1);
-              Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
-              CHECK_HALTED();
-	     }
-	    }
-	    else
-	    {
-	     ADDCLOCK(1);
-	     Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
-	     CHECK_HALTED();
+			RB_SETPC(RB_GETPC());
+			ADDCLOCK(1);
+			CHECK_HALTED();
 	    }
 	END_OP();
 

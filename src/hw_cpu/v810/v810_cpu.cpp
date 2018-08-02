@@ -92,12 +92,7 @@ INLINE void V810::RecalcIPendingCache(void)
 	// Of course don't generate an interrupt if there's not one pending!
 	if(ilevel < 0)
 		return;
-
-	// If CPU is halted because of a fatal exception, don't let an interrupt
-	// take us out of this halted status.
-	if(Halted == HALT_FATAL_EXCEPTION) 
-		return;
-
+	
 	// If the NMI pending, exception pending, and/or interrupt disabled bit
 	// is set, don't accept any interrupts.
 	if(S_REG[PSW] & (PSW_NP | PSW_EP | PSW_ID))
@@ -484,9 +479,6 @@ INLINE uint32 V810::GetSREG(unsigned int which)
 #define RB_SETPC(new_pc_raw) 										\
 	{										\
 		const uint32 new_pc = new_pc_raw;	/* So RB_SETPC(RB_GETPC()) won't mess up */	\
-		if(RB_AccurateMode)								\
-			PC = new_pc;								\
-		else										\
 		{										\
 			PC_ptr = &FastMap[(new_pc) >> V810_FAST_MAP_SHIFT][(new_pc)];		\
 			PC_base = PC_ptr - (new_pc);						\
@@ -494,9 +486,6 @@ INLINE uint32 V810::GetSREG(unsigned int which)
 	}
 
 #define RB_PCRELCHANGE(delta) { 				\
-		if(RB_AccurateMode)		\
-			PC += (delta);			\
-		else				\
 		{				\
 			uint32 PC_tmp = RB_GETPC();	\
 			PC_tmp += (delta);		\
@@ -504,38 +493,11 @@ INLINE uint32 V810::GetSREG(unsigned int which)
 		}					\
 	}
 
-#define RB_INCPCBY2()	{ if(RB_AccurateMode) PC += 2; else PC_ptr += 2; }
-#define RB_INCPCBY4()   { if(RB_AccurateMode) PC += 4; else PC_ptr += 4; }
+#define RB_INCPCBY2()	{ PC_ptr += 2; }
+#define RB_INCPCBY4()   { PC_ptr += 4; }
 
-#define RB_DECPCBY2()   { if(RB_AccurateMode) PC -= 2; else PC_ptr -= 2; }
-#define RB_DECPCBY4()   { if(RB_AccurateMode) PC -= 4; else PC_ptr -= 4; }
-
-
-// Define accurate mode defines
-#define RB_GETPC()      PC
-#define RB_RDOP(PC_offset, ...) RDOP(timestamp, PC + PC_offset, ## __VA_ARGS__)
-
-
-void V810::Run_Accurate(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t timestamp))
-{
-	const bool RB_AccurateMode = true;
-
-	#define RB_ADDBT(n,o,p)
-	#define RB_CPUHOOK(n)
-
-	#include "v810_oploop.inc"
-
-	#undef RB_CPUHOOK
-	#undef RB_ADDBT
-}
-
-//
-// Undefine accurate mode defines
-//
-#undef RB_GETPC
-#undef RB_RDOP
-
-
+#define RB_DECPCBY2()   { PC_ptr -= 2; }
+#define RB_DECPCBY4()   { PC_ptr -= 4; }
 
 //
 // Define fast mode defines
@@ -546,8 +508,6 @@ void V810::Run_Accurate(int32 MDFN_FASTCALL (*event_handler)(const v810_timestam
 
 void V810::Run_Fast(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t timestamp))
 {
-	const bool RB_AccurateMode = false;
-
 	#define RB_ADDBT(n,o,p)
 	#define RB_CPUHOOK(n)
 
@@ -566,12 +526,7 @@ void V810::Run_Fast(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t 
 v810_timestamp_t V810::Run(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t timestamp))
 {
 	Running = true;
-	{
-		if(EmuMode == V810_EMU_MODE_FAST)
-			Run_Fast(event_handler);
-		else
-			Run_Accurate(event_handler);
-	}
+	Run_Fast(event_handler);
 	return(v810_timestamp);
 }
 
@@ -790,13 +745,6 @@ INLINE bool V810::Do_BSTR_Search(v810_timestamp_t &timestamp, const int inc_mul,
 
 bool V810::bstr_subop(v810_timestamp_t &timestamp, int sub_op, int arg1)
 {
-	if((sub_op >= 0x10) || (!(sub_op & 0x8) && sub_op >= 0x4))
-	{
-		SetPC(GetPC() - 2);
-		Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
-		return(false);
-	}
-
 	if(sub_op & 0x08)
 	{
 		uint32 dstoff = (P_REG[26] & 0x1F);
@@ -858,79 +806,6 @@ INLINE void V810::SetFPUOPNonFPUFlags(uint32 result)
 		}
 }
 
-bool V810::FPU_DoesExceptionKillResult(void)
-{
-	const uint32 float_exception_flags = fpo.get_flags();
-
-	if(float_exception_flags & V810_FP_Ops::flag_reserved)
-	return(true);
-
-	if(float_exception_flags & V810_FP_Ops::flag_invalid)
-	return(true);
-
-	if(float_exception_flags & V810_FP_Ops::flag_divbyzero)
-	return(true);
-
-	// Return false here, so that the result of this calculation IS put in the output register.
-	// Wrap the exponent on overflow, rather than generating an infinity.  The wrapping behavior is specified in IEE 754 AFAIK,
-	// and is useful in cases where you divide a huge number
-	// by another huge number, and fix the result afterwards based on the number of overflows that occurred.  Probably requires some custom assembly code,
-	// though.  And it's the kind of thing you'd see in an engineering or physics program, not in a perverted video game :b).
-	if(float_exception_flags & V810_FP_Ops::flag_overflow)
-		return(false);
-
-	return(false);
-}
-
-void V810::FPU_DoException(void)
-{
-	const uint32 float_exception_flags = fpo.get_flags();
-	if(float_exception_flags & V810_FP_Ops::flag_reserved)
-	{
-		S_REG[PSW] |= PSW_FRO;
-		SetPC(GetPC() - 4);
-		Exception(FPU_HANDLER_ADDR, ECODE_FRO);
-		return;
-	}
-
-	if(float_exception_flags & V810_FP_Ops::flag_invalid)
-	{
-		S_REG[PSW] |= PSW_FIV;
-		SetPC(GetPC() - 4);
-		Exception(FPU_HANDLER_ADDR, ECODE_FIV);
-		return;
-	}
-
-	if(float_exception_flags & V810_FP_Ops::flag_divbyzero)
-	{
-		S_REG[PSW] |= PSW_FZD;
-		SetPC(GetPC() - 4);
-		Exception(FPU_HANDLER_ADDR, ECODE_FZD);
-		return;
-	}
-
-	if(float_exception_flags & V810_FP_Ops::flag_underflow)
-	{
-		S_REG[PSW] |= PSW_FUD;
-	}
-
-	if(float_exception_flags & V810_FP_Ops::flag_inexact)
-	{
-		S_REG[PSW] |= PSW_FPR;
-	}
-
-	//
-	// FPR can be set along with overflow, so put the overflow exception handling at the end here(for Exception() messes with PSW).
-	//
-	if(float_exception_flags & V810_FP_Ops::flag_overflow)
-	{
-		S_REG[PSW] |= PSW_FOV;
-
-		SetPC(GetPC() - 4);
-		Exception(FPU_HANDLER_ADDR, ECODE_FOV);
-	}
-}
-
 bool V810::IsSubnormal(uint32 fpval)
 {
 	if( ((fpval >> 23) & 0xFF) == 0 && (fpval & ((1 << 23) - 1)) )
@@ -945,12 +820,8 @@ INLINE void V810::FPU_Math_Template(uint32 (V810_FP_Ops::*func)(uint32, uint32),
 	fpo.clear_flags();
 	result = (fpo.*func)(P_REG[arg1], P_REG[arg2]);
 
-	if(!FPU_DoesExceptionKillResult())
-	{
-		SetFPUOPNonFPUFlags(result);
-		SetPREG(arg1, result);
-	}
-	FPU_DoException();
+	SetFPUOPNonFPUFlags(result);
+	SetPREG(arg1, result);
 }
 
 void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2)
@@ -959,26 +830,14 @@ void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2
 	
 	switch(sub_op) 
 	{
-        // Virtual-Boy specific(probably!)
-		default:
-		 /*
-		SetPC(GetPC() - 4);
-		Exception(INVALID_OP_HANDLER_ADDR, ECODE_INVALID_OP);
-		*/
-		break;
-
 		case CVT_WS: 
 			timestamp += 5;
 
 			fpo.clear_flags();
 			result = fpo.itof(P_REG[arg2]);
 
-			if(!FPU_DoesExceptionKillResult())
-			{
-				SetPREG(arg1, result);
-				SetFPUOPNonFPUFlags(result);
-			}
-			FPU_DoException();
+			SetPREG(arg1, result);
+			SetFPUOPNonFPUFlags(result);
 		break;	// End CVT.WS
 
 		case CVT_SW:
@@ -987,13 +846,9 @@ void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2
 			fpo.clear_flags();
 			result = fpo.ftoi(P_REG[arg2], false);
 
-			if(!FPU_DoesExceptionKillResult())
-			{
-				SetPREG(arg1, result);
-				SetFlag(PSW_OV, 0);
-				SetSZ(result);
-			}
-			FPU_DoException();
+			SetPREG(arg1, result);
+			SetFlag(PSW_OV, 0);
+			SetSZ(result);
 		break;	// End CVT.SW
 
 		case ADDF_S: 
@@ -1012,9 +867,7 @@ void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2
 			// have slightly different semantics(mostly regarding underflow/subnormal results) (confirmed on real V810).
 			fpo.clear_flags();
 			result = fpo.cmp(P_REG[arg1], P_REG[arg2]);
-			if(!FPU_DoesExceptionKillResult())
-		       SetFPUOPNonFPUFlags(result);
-			FPU_DoException();
+		    SetFPUOPNonFPUFlags(result);
 		break;
 
 		case MULF_S: 
@@ -1033,61 +886,10 @@ void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2
 			fpo.clear_flags();
 			result = fpo.ftoi(P_REG[arg2], true);
 
-			if(!FPU_DoesExceptionKillResult())
-			{
-				SetPREG(arg1, result);
-				SetFlag(PSW_OV, 0);
-				SetSZ(result);
-			}
-			FPU_DoException();
+			SetPREG(arg1, result);
+			SetFlag(PSW_OV, 0);
+			SetSZ(result);
 		break;	// end TRNC.SW
-	}
-}
-
-// Generate exception
-void V810::Exception(uint32 handler, uint16 eCode) 
-{
-	// Exception overhead is unknown.
-    printf("Exception: %08x %04x\n", handler, eCode);
-
-    // Invalidate our bitstring state(forces the instruction to be re-read, and the r/w buffers reloaded).
-    in_bstr = false;
-    have_src_cache = false;
-    have_dst_cache = false;
-
-    if(S_REG[PSW] & PSW_NP) // Fatal exception
-    {
-		printf("Fatal exception; Code: %08x, ECR: %08x, PSW: %08x, PC: %08x\n", eCode, S_REG[ECR], S_REG[PSW], PC);
-		Halted = HALT_FATAL_EXCEPTION;
-		IPendingCache = 0;
-		return;
-    }
-    else if(S_REG[PSW] & PSW_EP)  //Double Exception
-    {
-		S_REG[FEPC] = GetPC();
-		S_REG[FEPSW] = S_REG[PSW];
-
-		S_REG[ECR] = (S_REG[ECR] & 0xFFFF) | (eCode << 16);
-		S_REG[PSW] |= PSW_NP;
-		S_REG[PSW] |= PSW_ID;
-		S_REG[PSW] &= ~PSW_AE;
-
-		SetPC(0xFFFFFFD0);
-		IPendingCache = 0;
-		return;
-    }
-    else 	// Regular exception
-    {
-		S_REG[EIPC] = GetPC();
-		S_REG[EIPSW] = S_REG[PSW];
-		S_REG[ECR] = (S_REG[ECR] & 0xFFFF0000) | eCode;
-		S_REG[PSW] |= PSW_EP;
-		S_REG[PSW] |= PSW_ID;
-		S_REG[PSW] &= ~PSW_AE;
-
-		SetPC(handler);
-		IPendingCache = 0;
-		return;
 	}
 }
 
