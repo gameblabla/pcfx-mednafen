@@ -29,7 +29,6 @@
 
 #include "icon.h"
 
-#include "nnx.h"
 #include "debugger.h"
 #include "fps.h"
 #include "help.h"
@@ -678,29 +677,6 @@ void Video_Init(MDFNGI *gi)
   SDL_WM_SetIcon(IconSurface, 0);
  }
 
- if(!getenv("__GL_SYNC_TO_VBLANK") || weset_glstvb)
- {
-  if(MDFN_GetSettingB("video.glvsync"))
-  {
-   #if HAVE_PUTENV
-   static char gl_pe_string[] = "__GL_SYNC_TO_VBLANK=1";
-   putenv(gl_pe_string); 
-   #elif HAVE_SETENV
-   setenv("__GL_SYNC_TO_VBLANK", "1", 1);
-   #endif
-  }
-  else
-  {
-   #if HAVE_PUTENV
-   static char gl_pe_string[] = "__GL_SYNC_TO_VBLANK=0";
-   putenv(gl_pe_string); 
-   #elif HAVE_SETENV
-   setenv("__GL_SYNC_TO_VBLANK", "0", 1);
-   #endif
-  }
-  weset_glstvb = true;
- }
-
  osd_alpha_blend = MDFN_GetSettingB("osd.alpha_blend");
 
  std::string snp = std::string(gi->shortname) + ".";
@@ -711,16 +687,16 @@ void Video_Init(MDFNGI *gi)
  const std::string special_string = MDFN_GetSettingS(snp + std::string("special"));
  const unsigned special_id = MDFN_GetSettingUI(snp + std::string("special"));
 
- _fullscreen = MDFN_GetSettingB("video.fs");
+ _fullscreen = 0;			;
  _video.xres = MDFN_GetSettingUI(snp + "xres");
  _video.yres = MDFN_GetSettingUI(snp + "yres");
- _video.xscale = MDFN_GetSettingF(snp + "xscale");
- _video.yscale = MDFN_GetSettingF(snp + "yscale");
- _video.xscalefs = MDFN_GetSettingF(snp + "xscalefs");
- _video.yscalefs = MDFN_GetSettingF(snp + "yscalefs");
- _video.videoip = MDFN_GetSettingI(snp + "videoip");
- _video.stretch = MDFN_GetSettingUI(snp + "stretch");
- _video.scanlines = MDFN_GetSettingI(snp + "scanlines");
+ _video.xscale = 1;
+ _video.yscale = 1;
+ _video.xscalefs = 1;
+ _video.yscalefs = 1;
+ _video.videoip = 0;
+ _video.stretch = 0;
+ _video.scanlines = 0;
 
  _video.special = special_id;
 
@@ -736,125 +712,39 @@ void Video_Init(MDFNGI *gi)
  {
   best_xres = vinf->current_w;
   best_yres = vinf->current_h;
-
-  if(!best_xres || !best_yres)
-  {
-   best_xres = 640;
-   best_yres = 480;
-  }
  }
 
 
  if(vinf->hw_available)
   flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
 
- if(_fullscreen)
-  flags |= SDL_FULLSCREEN;
-
  vdriver = MDFN_GetSettingI("video.driver");
-
- if(vdriver == VDRIVER_OPENGL)
- {
-  if(!sdlhaveogl)
-  {
-   // SDL_GL_LoadLibrary returns 0 on success, -1 on failure
-   if(SDL_GL_LoadLibrary(NULL) == 0)
-    sdlhaveogl = true;
-   else
-    sdlhaveogl = false;
-  }
-
-  if(!sdlhaveogl)
-  {
-   MDFN_PrintError(_("Could not load OpenGL library, disabling OpenGL usage!"));
-   vdriver = VDRIVER_SOFTSDL;
-  }
- }
-
- if(vdriver == VDRIVER_OPENGL)
- {
-  flags |= SDL_OPENGL;
-
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1 );
-
-  #if SDL_VERSION_ATLEAST(1, 2, 10)
-  SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, MDFN_GetSettingB("video.glvsync"));
-  #endif
- }
- else if(vdriver == VDRIVER_SOFTSDL)
- {
-
- }
- else if(vdriver == VDRIVER_OVERLAY)
- {
-
- }
 
  exs = _fullscreen ? _video.xscalefs : _video.xscale;
  eys = _fullscreen ? _video.yscalefs : _video.yscale;
  evideoip = _video.videoip;
 
- desbpp = 32;
+	desbpp = 32;
 
- if(!_video.stretch || !_fullscreen)
- {
-  if(exs > 50)
-  {
-   MDFND_PrintError(_("Eep!  Effective X scale setting is way too high.  Correcting."));
-   exs = 50;
-  }
+	if(!(screen = SDL_SetVideoMode(256, 232, desbpp, SDL_HWSURFACE)))
+	{
+		throw MDFN_Error(0, "%s", SDL_GetError());
+	}
 
-  if(eys > 50)
-  {
-   MDFND_PrintError(_("Eep!  Effective Y scale setting is way too high.  Correcting."));
-   eys = 50;
-  }
- }
+	cur_xres = screen->w;
+	cur_yres = screen->h;
+	cur_flags = flags;
+	curbpp = screen->format->BitsPerPixel;
 
- if(_fullscreen)
- {
-  if(!screen || cur_xres != _video.xres || cur_yres != _video.yres || cur_flags != flags || curbpp != desbpp)
-  {
-   if(!(screen = SDL_SetVideoMode(_video.xres ? _video.xres : best_xres, _video.yres ? _video.yres : best_yres, desbpp, flags)))
-   {
-    throw MDFN_Error(0, "%s", SDL_GetError());
-   }
-  }
- }
- else
- {
-  GenerateDestRect();
-  if(!screen || cur_xres != screen_dest_rect.w || cur_yres != screen_dest_rect.h || cur_flags != flags || curbpp != desbpp)
-  {
-   if(!(screen = SDL_SetVideoMode(screen_dest_rect.w, screen_dest_rect.h, desbpp, flags)))
-   {
-    throw MDFN_Error(0, "%s", SDL_GetError());
-   }
-  }
- }
+	GenerateDestRect();
 
- cur_xres = screen->w;
- cur_yres = screen->h;
- cur_flags = flags;
- curbpp = screen->format->BitsPerPixel;
-
- // Kludgey, we need to clean this up(vdriver vs cur_flags and whatnot).
- if(vdriver != VDRIVER_OVERLAY)
-  vdriver = (cur_flags & SDL_OPENGL) ? VDRIVER_OPENGL : VDRIVER_SOFTSDL;
-
- GenerateDestRect();
-
- MDFN_printf(_("Video Driver: %s\n"), (cur_flags & SDL_OPENGL) ? _("OpenGL") : (vdriver == VDRIVER_OVERLAY ? _("Overlay") :_("Software SDL") ) );
-
- MDFN_printf(_("Video Mode: %d x %d x %d bpp\n"),screen->w,screen->h,screen->format->BitsPerPixel);
- if(curbpp != 16 && curbpp != 24 && curbpp != 32)
- {
-  unsigned cbpp_copy = curbpp;
-
-  Video_Kill();
-
-  throw MDFN_Error(0, _("Sorry, %dbpp modes are not supported by Mednafen.  Supported bit depths are 16bpp, 24bpp, and 32bpp.\n"), cbpp_copy);
- }
+	MDFN_printf(_("Video Mode: %d x %d x %d bpp\n"),screen->w,screen->h,screen->format->BitsPerPixel);
+	if(curbpp != 16 && curbpp != 24 && curbpp != 32)
+	{
+		unsigned cbpp_copy = curbpp;
+		Video_Kill();
+		throw MDFN_Error(0, _("Sorry, %dbpp modes are not supported by Mednafen.  Supported bit depths are 16bpp, 24bpp, and 32bpp.\n"), cbpp_copy);
+	}
 
  //MDFN_printf(_("OpenGL: %s\n"), (cur_flags & SDL_OPENGL) ? _("Yes") : _("No"));
 
@@ -1054,357 +944,28 @@ static bool OverlayOK;	// Set to TRUE when vdriver == "overlay", and it's safe t
 
 static void SubBlit(const MDFN_Surface *source_surface, const MDFN_Rect &src_rect, const MDFN_Rect &dest_rect, const int InterlaceField)
 {
- const MDFN_Surface *eff_source_surface = source_surface;
- MDFN_Rect eff_src_rect = src_rect;
- int overlay_softscale = 0;
-
- if(!(src_rect.w > 0 && src_rect.w <= 32767) || !(src_rect.h > 0 && src_rect.h <= 32767))
- {
-  //fprintf(stderr, "BUG: Source rect out of range; w=%d, h=%d\n", src_rect.w, src_rect.h);
-  return;
- }
-//#if 0
-// assert(src_rect.w > 0 && src_rect.w <= 32767);
-// assert(src_rect.h > 0 && src_rect.h <= 32767);
-//#endif
-
- assert(dest_rect.w > 0);
- assert(dest_rect.h > 0);
-
- if(OverlayOK && CurrentScaler && !CurGame->rotated)
- {
-  if(CurrentScaler->id == NTVB_NN2X || CurrentScaler->id == NTVB_NN3X || CurrentScaler->id == NTVB_NN4X)
-   overlay_softscale = CurrentScaler->id - NTVB_NN2X + 2;
- }
-
-   if(CurrentScaler && !overlay_softscale)
-   {
-    MDFN_Rect boohoo_rect({0, 0, eff_src_rect.w * CurrentScaler->xscale, eff_src_rect.h * CurrentScaler->yscale});
-    MDFN_Surface bah_surface(NULL, boohoo_rect.w, boohoo_rect.h, boohoo_rect.w, eff_source_surface->format, false);
-    uint8* screen_pixies = (uint8 *)bah_surface.pixels;
-    uint32 screen_pitch = bah_surface.pitch32 << 2;
-
-	if(CurrentScaler->id == NTVB_NN2X || CurrentScaler->id == NTVB_NN3X || CurrentScaler->id == NTVB_NN4X)
-    {
-     nnx(CurrentScaler->id - NTVB_NN2X + 2, eff_source_surface, eff_src_rect, &bah_surface, boohoo_rect);
-    }
-    else if(CurrentScaler->id == NTVB_NNY2X || CurrentScaler->id == NTVB_NNY3X || CurrentScaler->id == NTVB_NNY4X)
-    {
-     nnyx(CurrentScaler->id - NTVB_NNY2X + 2, eff_source_surface, eff_src_rect, &bah_surface, boohoo_rect);
-    }
-
-    {
-     {
-      SDL_to_MDFN_Surface_Wrapper m_surface(screen);
-
-      MDFN_StretchBlitSurface(&bah_surface, boohoo_rect, &m_surface, dest_rect, false, _video.scanlines, &eff_src_rect, CurGame->rotated, InterlaceField);
-     }
-    }
-   }
-   else // No special scaler:
-   {
-    {
-     {
-      SDL_to_MDFN_Surface_Wrapper m_surface(screen);
-
-      MDFN_StretchBlitSurface(eff_source_surface, eff_src_rect, &m_surface, dest_rect, false, _video.scanlines, &eff_src_rect, CurGame->rotated, InterlaceField);
-     }
-    }
-   }
+	const MDFN_Surface *eff_source_surface = source_surface;
+	MDFN_Rect eff_src_rect = src_rect;
+	int overlay_softscale = 0;
+	SDL_to_MDFN_Surface_Wrapper m_surface(screen);
+	MDFN_StretchBlitSurface(eff_source_surface, eff_src_rect, &m_surface, dest_rect, false, _video.scanlines, &eff_src_rect, CurGame->rotated, InterlaceField);
 }
 
 void BlitScreen(MDFN_Surface *msurface, const MDFN_Rect *DisplayRect, const int32 *LineWidths, const int InterlaceField, const bool take_ssnapshot)
 {
- MDFN_Rect src_rect;
- const MDFN_PixelFormat *pf_needed = &pf_normal;
+	MDFN_Rect src_rect;
+	const MDFN_PixelFormat *pf_needed = &pf_normal;
 
- if(!screen)
-  return;
+	msurface->SetFormat(*pf_needed, TRUE);
 
- //
- // Reduce CPU usage when minimized, and prevent OpenGL memory quasi-leaks on Windows(though I have the feeling there's a
- // cleaner less-racey way to prevent that memory leak problem).
- //
- if(!(SDL_GetAppState() & SDL_APPACTIVE))
-  return;
+	src_rect.x = DisplayRect->x;
+	src_rect.w = DisplayRect->w;
+	src_rect.y = DisplayRect->y;
+	src_rect.h = DisplayRect->h;
 
- if(NeedClear)
- {
-  uint32 ct = Time::MonoMS();
+	SubBlit(msurface, src_rect, screen_dest_rect, InterlaceField);
 
-  if((ct - LastBBClearTime) >= 30)
-  {
-   LastBBClearTime = ct;
-   NeedClear--;
-  }
-
-  ClearBackBuffer();
- }
-
- OverlayOK = false;
- if(vdriver == VDRIVER_OVERLAY)
- {
-  bool osd_active = Help_IsActive() || SaveStatesActive() ||
-		   IsInternalMessageActive() || Debugger_IsActive();
-
-  OverlayOK = (vdriver == VDRIVER_OVERLAY) && !take_ssnapshot && !osd_active && (!CurrentScaler || (CurrentScaler->id != NTVB_HQ2X && CurrentScaler->id != NTVB_HQ3X &&
-		CurrentScaler->id != NTVB_HQ4X));
-
-  if(OverlayOK && LineWidths[0] != ~0)
-  {
-   const int32 first_width = LineWidths[DisplayRect->y];
-
-   for(int suby = DisplayRect->y; suby < DisplayRect->y + DisplayRect->h; suby++)
-   {
-    if(LineWidths[suby] != first_width)
-    {
-     //puts("Skippidy");
-     OverlayOK = FALSE;
-     break;
-    }
-   }
-  }
-
-  if(OverlayOK)
-   pf_needed = &pf_overlay;
- } // end if(vdriver == VDRIVER_OVERLAY)
-
- msurface->SetFormat(*pf_needed, TRUE);
-
- src_rect.x = DisplayRect->x;
- src_rect.w = DisplayRect->w;
- src_rect.y = DisplayRect->y;
- src_rect.h = DisplayRect->h;
-
- // This drawing to the game's video surface can cause visual glitches, but better than killing performance which kind of
- // defeats the purpose of the FPS display.
- if(OverlayOK)
- {
-  int fps_w, fps_h;
-
-  if(FPS_IsActive(&fps_w, &fps_h))
-  {
-   int fps_xpos = DisplayRect->x;
-   int fps_ypos = DisplayRect->y;
-   int x_bound = DisplayRect->x + DisplayRect->w;
-   int y_bound = DisplayRect->y + DisplayRect->h;
-
-   if(LineWidths[0] != ~0)
-   {
-    x_bound = DisplayRect->x + LineWidths[DisplayRect->y];
-   }
-
-   if((fps_xpos + fps_w) > x_bound || (fps_ypos + fps_h) > y_bound)
-   {
-    puts("FPS draw error");
-   }
-   else
-   {
-    FPS_Draw(msurface, fps_xpos, DisplayRect->y);
-   }
-
-  }
- }
-
- if(LineWidths[0] == ~0) // Skip multi line widths code?
- {
-  SubBlit(msurface, src_rect, screen_dest_rect, InterlaceField);
- }
- else
- {
-  int y;
-  int last_y = src_rect.y;
-  int last_width = LineWidths[src_rect.y];
-
-  MDFN_Rect sub_src_rect;
-  MDFN_Rect sub_dest_rect;
-
-  for(y = src_rect.y; y < (src_rect.y + src_rect.h + 1); y++)
-  {
-   if(y == (src_rect.y + src_rect.h) || LineWidths[y] != last_width)
-   {
-    sub_src_rect.x = src_rect.x;
-    sub_src_rect.w = last_width;
-    sub_src_rect.y = last_y;
-    sub_src_rect.h = y - last_y;
-
-    if(CurGame->rotated == MDFN_ROTATE90)
-    {
-     sub_dest_rect.x = screen_dest_rect.x + (last_y - src_rect.y) * screen_dest_rect.w / src_rect.h;
-     sub_dest_rect.y = screen_dest_rect.y;
-
-     sub_dest_rect.w = sub_src_rect.h * screen_dest_rect.w / src_rect.h;
-     sub_dest_rect.h = screen_dest_rect.h;
-     //printf("sdr.x=%f, sdr.w=%f\n", (double)screen_dest_rect.x + (double)(last_y - src_rect.y) * screen_dest_rect.w / src_rect.h, (double)sub_src_rect.h * screen_dest_rect.w / src_rect.h);
-    }
-    else if(CurGame->rotated == MDFN_ROTATE270)
-    {
-     sub_dest_rect.x = screen_dest_rect.x + (src_rect.h - (y - src_rect.y)) * screen_dest_rect.w / src_rect.h;
-     sub_dest_rect.y = screen_dest_rect.y;
-
-     sub_dest_rect.w = sub_src_rect.h * screen_dest_rect.w / src_rect.h;
-     sub_dest_rect.h = screen_dest_rect.h;
-    }
-    else
-    {
-     sub_dest_rect.x = screen_dest_rect.x;
-     sub_dest_rect.w = screen_dest_rect.w;
-     sub_dest_rect.y = screen_dest_rect.y + (last_y - src_rect.y) * screen_dest_rect.h / src_rect.h;
-     sub_dest_rect.h = sub_src_rect.h * screen_dest_rect.h / src_rect.h;
-    }
-
-    if(!sub_dest_rect.h) // May occur with small yscale values in certain cases, so prevent triggering an assert()
-     sub_dest_rect.h = 1;
-
-    // Blit here!
-    SubBlit(msurface, sub_src_rect, sub_dest_rect, InterlaceField);
-
-    last_y = y;
-
-    if(y != (src_rect.y + src_rect.h))
-    {
-     last_width = LineWidths[y];
-    }
-
-   }
-  }
- }
-
- if(take_ssnapshot)
- {
-  try
-  {
-   std::unique_ptr<MDFN_Surface> ib;
-   MDFN_Rect sr;
-   MDFN_Rect tr;
-
-   sr = screen_dest_rect;
-   if(sr.x < 0) { sr.w += sr.x; sr.x = 0; }
-   if(sr.y < 0) { sr.h += sr.y; sr.y = 0; }
-   if(sr.w < 0) sr.w = 0;
-   if(sr.h < 0) sr.h = 0;
-   if(sr.w > screen->w) sr.w = screen->w;
-   if(sr.h > screen->h) sr.h = screen->h;
-
-   ib.reset(new MDFN_Surface(NULL, sr.w, sr.h, sr.w, MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as)));
-
-   {
-    if(SDL_MUSTLOCK(screen))
-     SDL_LockSurface(screen);
-
-    for(int y = 0; y < sr.h; y++)
-    {
-     for(int x = 0; x < sr.w; x++)
-     {
-      ib->pixels[y * ib->pitchinpix + x] = ((uint32*)((uint8*)screen->pixels + (sr.y + y) * screen->pitch))[sr.x + x];
-     }
-    }
-
-    if(SDL_MUSTLOCK(screen))
-     SDL_UnlockSurface(screen);
-   }
-
-
-   tr.x = tr.y = 0;
-   tr.w = ib->w;
-   tr.h = ib->h;
-   MDFNI_SaveSnapshot(ib.get(), &tr, NULL);
-  }
-  catch(std::exception &e)
-  {
-   MDFN_DispMessage("%s", e.what());
-  }
- }
-
-
- Debugger_MT_DrawToScreen(MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as), screen->w, screen->h);
-
-#if 0
- if(CKGUI_IsActive())
- {
-  if(!CKGUISurface)
-  {
-   CKGUIRect.w = screen->w;
-   CKGUIRect.h = screen->h;
-
-   CKGUISurface = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA, CKGUIRect.w, CKGUIRect.h, 32, 0xFF << real_rs, 0xFF << real_gs, 0xFF << real_bs, 0xFF << real_as);
-   SDL_SetColorKey(CKGUISurface, SDL_SRCCOLORKEY, 0);
-   SDL_SetAlpha(CKGUISurface, SDL_SRCALPHA, 0);
-  }
-  MDFN_Rect zederect = CKGUIRect;
-  CKGUI_Draw(CKGUISurface, &CKGUIRect);
-  BlitRaw(CKGUISurface, &CKGUIRect, &zederect);
- }
- else if(CKGUISurface)
- {
-  SDL_FreeSurface(CKGUISurface);
-  CKGUISurface = NULL;
- }
-#endif
-
- if(Help_IsActive())
- {
-  if(!HelpSurface)
-  {
-   HelpRect.x = 0;
-   HelpRect.y = 0;
-   HelpRect.w = std::min<int>(512, screen->w);
-   HelpRect.h = std::min<int>(408, screen->h);
-
-   HelpSurface = new MDFN_Surface(NULL, 512, 408, 512, MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as));
-   Help_Draw(HelpSurface, HelpRect);
-  }
-
-  MDFN_Rect zederect;
-  int32 sfx = screen->w / HelpRect.w;
-  int32 sfy = screen->h / HelpRect.h;
-
-  if(sfy > sfx)
-   sfy = sfx + 1;
-
-  if(sfx > sfy)
-   sfx = sfy + 1;
-
-  zederect.w = HelpRect.w * sfx;
-  zederect.h = HelpRect.h * sfy;
-
-  zederect.x = (screen->w - zederect.w) / 2;
-  zederect.y = (screen->h - zederect.h) / 2;
-
-  BlitRaw(HelpSurface, &HelpRect, &zederect, 0);
- }
- else if(HelpSurface)
- {
-  delete HelpSurface;
-  HelpSurface = NULL;
- }
-
- DrawSaveStates(screen, exs, eys, real_rs, real_gs, real_bs, real_as);
-
- BlitInternalMessage();
-
- if(!OverlayOK)
- {
-  unsigned fps_offsx = 0, fps_offsy = 0;
-
-  // When using soft-SDL, position the FPS display so we won't incur a potentially large(on older/slower hardware) penalty due
-  // to a requisite backbuffer clear(we could avoid this with some sort of dirty-rects system so only parts of the backbuffer are cleared,
-  // but that gets awfully complicated and prone to bugs when dealing with double/triple-buffered video...).
-  //
-  // std::max so we don't position it offscreen if the user has selected xscalefs or yscalefs values that are too large.
-  if(!(cur_flags & SDL_OPENGL))
-  {
-   fps_offsx = std::max<int32>(screen_dest_rect.x, 0);
-   fps_offsy = std::max<int32>(screen_dest_rect.y, 0);
-  }
-  FPS_DrawToScreen(screen, real_rs, real_gs, real_bs, real_as, fps_offsx, fps_offsy);
- }
-
- {
-  if(!OverlayOK)
-   SDL_Flip(screen);
- }
-
+	SDL_Flip(screen);
 }
 
 void Video_PtoV(const int in_x, const int in_y, int32 *out_x, int32 *out_y)

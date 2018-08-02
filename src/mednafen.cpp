@@ -1844,7 +1844,7 @@ void MDFN_MediaSetNotification(uint32 drive_idx, uint32 state_idx, uint32 media_
  DMStatus[drive_idx].media_idx = media_idx;
  DMStatus[drive_idx].orientation_idx = orientation_idx;
 
- MDFND_MediaSetNotification(drive_idx, state_idx, media_idx, orientation_idx);
+ //MDFND_MediaSetNotification(drive_idx, state_idx, media_idx, orientation_idx);
 }
 
 bool MDFN_UntrustedSetMedia(uint32 drive_idx, uint32 state_idx, uint32 media_idx, uint32 orientation_idx)
