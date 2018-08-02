@@ -18,9 +18,9 @@ We also need to seperate the accurate & fast versions, for speed reasons (there 
 
 We need to remove the FX-SCSI stuff. Do you really need this just to run games ?
 
-Remove FPU exceptions & CPU exceptions to the full extent possible
+Remove FPU exceptions & CPU exceptions to the full extent possible.
 
-n my experiments, removing those has no ill or intended effects. (Plus it would crash anyway if it would encounter those)
+In my experiments, removing those has no ill or un-intended effects. (Plus it would crash anyway if it would encounter those)
 
 # Remove dot clock emulation mode - DONE
 
