@@ -345,7 +345,7 @@ static void DoHBlankVCECaching(void)
  dest->picture_mode = source->picture_mode;
 
  fx_vce.dot_clock = (bool)(fx_vce.picture_mode & 0x08);
- fx_vce.dot_clock_ratio = (fx_vce.picture_mode & 0x08) ? 3 : 4;
+ fx_vce.dot_clock_ratio = 4;
 
  for(int i = 0; i < 2; i++)
   dest->priority[i] = source->priority[i];
@@ -1735,7 +1735,6 @@ uint16 KING_GetADPCMHalfWord(int ch)
  return(ret);
 }
 
-static uint32 HighDotClockWidth;
 extern RavenBuffer* FXCDDABufs[2]; // FIXME, externals are evil!
 
 static void Cleanup(void)
@@ -1758,7 +1757,6 @@ void KING_Init(void)
 
   king->lastts = 0;
 
-  HighDotClockWidth = MDFN_GetSettingUI("pcfx.high_dotclock_width");
   BGLayerDisable = 0;
 
   BuildCMT();
@@ -2685,7 +2683,7 @@ static INLINE void VDC_PIXELMIX(bool SPRCOMBO_ON, bool BGCOMBO_ON)
                                 (((uint32)fx_vce.palette_offset[0] >> 8) & 0xFF) << 1 // SPR
                                };
 
-    const int width = fx_vce.dot_clock ? 342 : 256; // 342, not 341, to prevent garbage pixels in high dot clock mode.
+    const int width = 256; // 342, not 341, to prevent garbage pixels in high dot clock mode.
 
     for(int x = 0; x < width; x++)
     {
@@ -2958,7 +2956,7 @@ static void MixLayers(void)
      #include "king_mix_body.inc"
      #undef YUV888_TO_xxx
     }
-    DisplayRect->w = fx_vce.dot_clock ? HighDotClockWidth : 256;
+    DisplayRect->w = 256;
     DisplayRect->x = 0;
 
 	// FIXME
@@ -3100,9 +3098,6 @@ static void MDFN_FASTCALL KING_RunGfx(int32 clocks)
 			// This -18(and +18) may or may not be correct in regards to how a real PC-FX adjusts the VDC layer horizontal position
 			// versus the KING and RAINBOW layers.
 
-			if(fx_vce.dot_clock)
-			 HPhaseCounter += 173 - 18;
-			else
 			 HPhaseCounter += 165;
 			break;
 
@@ -3111,9 +3106,6 @@ static void MDFN_FASTCALL KING_RunGfx(int32 clocks)
                         for(int chip = 0; chip < 2; chip++)
 			 vdc_chips[chip]->HSync(false);
 
-			if(fx_vce.dot_clock)
-			 HPhaseCounter += 120 + 18;
-			else
  		  	 HPhaseCounter += 128;
 			break;
 
@@ -3307,7 +3299,7 @@ void KING_StateAction(StateMem *sm, const unsigned load, const bool data_only)
  {
   RecalcKRAMPagePtrs();
 
-  fx_vce.dot_clock_ratio = fx_vce.dot_clock ? 3 : 4;
+  fx_vce.dot_clock_ratio = 4;
 
   if(fx_vce.clock_divider < 0)
    fx_vce.clock_divider = 0;

@@ -1165,7 +1165,7 @@ MDFNGI EmulatedPCFX =
  0,   // lcm_height
  NULL,  // Dummy
 
- 288,	// Nominal width
+ 256,	// Nominal width
  240,	// Nominal height
 
  1024,	// Framebuffer width
