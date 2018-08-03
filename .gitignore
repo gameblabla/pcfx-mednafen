@@ -3,3 +3,6 @@
 *.cue
 *.iso
 *.o
+*.out
+log.txt
+log1.txt

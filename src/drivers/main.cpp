@@ -45,7 +45,6 @@
 #include "sound.h"
 #include "fps.h"
 #include "debugger.h"
-#include "help.h"
 #include "video-state.h"
 #include "remote.h"
 #include "ers.h"
@@ -142,7 +141,7 @@ static const MDFNSetting DriverSettings[] =
   { "sound", MDFNSF_NOFLAGS, gettext_noop("Enable sound output."), NULL, MDFNST_BOOL, "1" },
   { "sound.period_time", MDFNSF_NOFLAGS, gettext_noop("Desired period size in microseconds(μs)."), gettext_noop("Currently only affects OSS, ALSA, WASAPI(exclusive mode), and SDL output.  A value of 0 defers to the default in the driver code in SexyAL.\n\nNote: This is not the \"sound buffer size\" setting, that would be \"sound.buffer_time\"."), MDFNST_UINT,  "0", "0", "100000" },
   { "sound.buffer_time", MDFNSF_NOFLAGS, gettext_noop("Desired buffer size in milliseconds(ms)."), gettext_noop("The default value of 0 enables automatic buffer size selection."), MDFNST_UINT, "0", "0", "1000" },
-  { "sound.rate", MDFNSF_NOFLAGS, gettext_noop("Specifies the sound playback rate, in sound frames per second(\"Hz\")."), NULL, MDFNST_UINT, "48000", "22050", "192000"},
+  { "sound.rate", MDFNSF_NOFLAGS, gettext_noop("Specifies the sound playback rate, in sound frames per second(\"Hz\")."), NULL, MDFNST_UINT, "22050", "22050", "192000"},
 
   #ifdef WANT_DEBUGGER
   { "debugger.autostepmode", MDFNSF_NOFLAGS, gettext_noop("Automatically go into the debugger's step mode after a game is loaded."), NULL, MDFNST_BOOL, "0" },
@@ -1300,22 +1299,13 @@ bool GT_ReinitSound(void)
 static bool krepeat = 0;
 void PumpWrap(void)
 {
- SDL_Event event;
- SDL_Event gtevents_temp[gtevents_size];
- int numevents = 0;
+	SDL_Event event;
+	SDL_Event gtevents_temp[gtevents_size];
+	int numevents = 0;
 
- if( Help_IsActive())
- {
-  if(!krepeat)
-   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-  krepeat = 1;
- }
- else
- {
-  if(krepeat)
-   SDL_EnableKeyRepeat(0, 0);
-  krepeat = 0;
- }
+	if(krepeat)
+	SDL_EnableKeyRepeat(0, 0);
+	krepeat = 0;
 
  #if defined(HAVE_SIGNAL) || defined(HAVE_SIGACTION)
  if(SignalSafeExitWanted)
@@ -1653,49 +1643,6 @@ static bool HandleVideoChange(void)
 
 int main(int argc, char *argv[])
 {
-	//ThreadTest();
-
-#if 0
-	// Special helper mode. (TODO)
-	if(argc == 3 && !strcmp(argv[1], "-joy_config_helper"))
-	{
-	 int fd = atoi(argv[2]);
-	 int64 ltime = Time::MonoMS();
-
-	 if(SDL_Init(0))
-	 {
-	  fprintf(stderr, "Could not initialize SDL: %s\n", SDL_GetError());
-	  return(-1);
-	 }
-	 SDL_JoystickEventState(SDL_IGNORE);
-
- 	 joy_manager = new JoystickManager();
-	 joy_manager->SetAnalogThreshold(0.75);
-
-	 for(;;)
-	 {
-	  char command[256];
-	  if(0)
-	  {
-	   if(!strcasecmp(command, "reset"))
-	    joy_manager->Reset_BC_ChangeCheck();
-	   else if(!strcasecmp(command, "detect_analog_buttons"))
-	    joy_manager->DetectAnalogButtonsForChangeCheck();
-	   else if(!strcasecmp(command, "exit"))
-	    break;
-	  }
-
-
-	  while((Time::MonoMS() - ltime) < 15)
-	   MDFND_Sleep(1);
-	  ltime += 15;
-	 }
-
-	 delete joy_manager;
-	 joy_manager = NULL;	 
-	 return(0);
-	}
-#endif
 	char *needie = NULL;
 
         // Place before calls to SDL_Init()

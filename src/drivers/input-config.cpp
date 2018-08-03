@@ -28,7 +28,7 @@ extern JoystickManager *joy_manager;
 
 int32 DTestMouseAxis(ButtConfig &bc, const uint8* KeyState, const uint32* MouseData, const bool axis_hint)	// UNDOCUMENTED INCOMPLETE FUN
 {
- if(bc.ButtType == BUTTC_JOYSTICK)	// HAXY
+ /*if(bc.ButtType == BUTTC_JOYSTICK)	// HAXY
  {
   int32 ret = 0;
   ButtConfig tmp_bc = bc;
@@ -55,7 +55,7 @@ int32 DTestMouseAxis(ButtConfig &bc, const uint8* KeyState, const uint32* MouseD
   else
    return(0);
  }
- else					// UNSUPPORTED
+ else		*/			// UNSUPPORTED
   return(0);
 }
 

@@ -31,7 +31,6 @@
 
 #include "debugger.h"
 #include "fps.h"
-#include "help.h"
 #include "video-state.h"
 
 #ifdef WANT_FANCY_SCALERS
@@ -371,12 +370,8 @@ static int cur_xres, cur_yres, cur_flags;
 static ScalerDefinition *CurrentScaler = NULL;
 
 static SDL_Surface *screen = NULL;
-static SDL_Surface *IconSurface=NULL;
 
 static MDFN_Rect screen_dest_rect;
-
-static MDFN_Surface *HelpSurface = NULL;
-static MDFN_Rect HelpRect;
 
 static MDFN_Surface *SMSurface = NULL;
 static MDFN_Rect SMRect;
@@ -399,330 +394,82 @@ static void MarkNeedBBClear(void)
 
 static void ClearBackBuffer(void)
 {
- //printf("WOO: %u\n", Time::MonoMS());
- {
-  // Don't use SDL_FillRect() on hardware surfaces, it's borked(causes a long wait) with DirectX.
-  // ...on second thought, memset() is likely borked on PPC with hardware surface memory due to use of "dcbz" on uncachable memory. :(
-  //
-  // We'll do an icky #ifdef kludge instead for now.
-#ifdef WIN32
-  if(screen->flags & SDL_HWSURFACE)
-  {
-   if(SDL_MUSTLOCK(screen))
-    SDL_LockSurface(screen);
-   memset(screen->pixels, 0, screen->pitch * screen->h);
-   if(SDL_MUSTLOCK(screen))
-    SDL_UnlockSurface(screen);
-  }
-  else
-#endif
-  {
-   SDL_FillRect(screen, NULL, 0);
-  }
- }
+	SDL_FillRect(screen, NULL, 0);
 }
 
 void Video_Kill(void)
 {
- /*
- if(IconSurface)
- {
-  SDL_FreeSurface(IconSurface);
-  IconSurface = NULL;
- }
- */
+	if(SMSurface)
+	{
+		delete SMSurface;
+		SMSurface = NULL;
+	}
 
- if(SMSurface)
- {
-  delete SMSurface;
-  SMSurface = NULL;
- }
-
- if(HelpSurface)
- {
-  delete HelpSurface;
-  HelpSurface = NULL;
- }
-
-
- screen = NULL;
- VideoGI = NULL;
- cur_xres = 0;
- cur_yres = 0;
- cur_flags = 0;
+	screen = NULL;
+	VideoGI = NULL;
+	cur_xres = 0;
+	cur_yres = 0;
+	cur_flags = 0;
 }
 
-static void GenerateDestRect(void)
-{
- if(_video.stretch && _fullscreen)
- {
-  int nom_width, nom_height;
-
-  if(VideoGI->rotated)
-  {
-   nom_width = VideoGI->nominal_height;
-   nom_height = VideoGI->nominal_width;
-  }
-  else
-  {
-   nom_width = VideoGI->nominal_width;
-   nom_height = VideoGI->nominal_height;
-  }
-
-  if (_video.stretch == 2 || _video.stretch == 3 || _video.stretch == 4)	// Aspect-preserve stretch
-  {
-   exs = (double)cur_xres / nom_width;
-   eys = (double)cur_yres / nom_height;
-
-   if(_video.stretch == 3 || _video.stretch == 4)	// Round down to nearest int.
-   {
-    double floor_exs = floor(exs);
-    double floor_eys = floor(eys);
-
-    if(!floor_exs || !floor_eys)
-    {
-     MDFN_printf(_("WARNING: Resolution is too low for stretch mode selected.  Falling back to \"aspect\" mode.\n"));
-    }
-    else
-    {
-     exs = floor_exs;
-     eys = floor_eys;
-
-     if(_video.stretch == 4)	// Round down to nearest multiple of 2.
-     {
-      int even_exs = (int)exs & ~1;
-      int even_eys = (int)eys & ~1;
-
-      if(!even_exs || !even_eys)
-      {
-       MDFN_printf(_("WARNING: Resolution is too low for stretch mode selected.  Falling back to \"aspect_int\" mode.\n"));
-      }
-      else
-      {
-       exs = even_exs;
-       eys = even_eys;
-      }
-     }
-    }
-   }
-
-   // Check if we are constrained horizontally or vertically
-   if (exs > eys)
-   {
-    // Too tall for screen, fill vertically
-    exs = eys;
-   }
-   else
-   {
-    // Too wide for screen, fill horizontally
-    eys = exs;
-   }
-
-   //printf("%f %f\n", exs, eys);
-
-   screen_dest_rect.w = (int)(exs*nom_width + 0.5); // +0.5 for rounding
-   screen_dest_rect.h = (int)(eys*nom_height + 0.5); // +0.5 for rounding
-
-   // Centering:
-   int nx = (int)((cur_xres - screen_dest_rect.w) / 2);
-   if(nx < 0) nx = 0;
-   screen_dest_rect.x = nx;
-
-   int ny = (int)((cur_yres - screen_dest_rect.h) / 2);
-   if(ny < 0) ny = 0;
-   screen_dest_rect.y = ny;
-  }
-  else 	// Full-stretch
-  {
-   screen_dest_rect.x = 0;
-   screen_dest_rect.w = cur_xres;
-
-   screen_dest_rect.y = 0;
-   screen_dest_rect.h = cur_yres;
-
-   exs = (double)cur_xres / nom_width;
-   eys = (double)cur_yres / nom_height;
-  }
- }
- else
- {
-  if(VideoGI->rotated)
-  {
-   int32 ny = (int)((cur_yres - VideoGI->nominal_width * exs) / 2);
-   int32 nx = (int)((cur_xres - VideoGI->nominal_height * eys) / 2);
-
-   //if(ny < 0) ny = 0;
-   //if(nx < 0) nx = 0;
-
-   screen_dest_rect.x = _fullscreen ? nx : 0;
-   screen_dest_rect.y = _fullscreen ? ny : 0;
-   screen_dest_rect.w = (Uint16)(VideoGI->nominal_height * eys);
-   screen_dest_rect.h = (Uint16)(VideoGI->nominal_width * exs);
-  }
-  else
-  {
-   int nx = (int)((cur_xres - VideoGI->nominal_width * exs) / 2);
-   int ny = (int)((cur_yres - VideoGI->nominal_height * eys) / 2);
-
-   // Don't check to see if the coordinates go off screen here, offscreen coordinates are valid(though weird that the user would want them...)
-   // in OpenGL mode, and are clipped to valid coordinates in SDL blit mode code.
-   //if(nx < 0)
-   // nx = 0;
-   //if(ny < 0)
-   // ny = 0;
-
-   screen_dest_rect.x = _fullscreen ? nx : 0;
-   screen_dest_rect.y = _fullscreen ? ny : 0;
-
-   //printf("%.64f %d, %f, %d\n", exs, VideoGI->nominal_width, exs * VideoGI->nominal_width, (int)(exs * VideoGI->nominal_width));
-   // FIXME, stupid floating point
-   screen_dest_rect.w = (Uint16)(VideoGI->nominal_width * exs + 0.000000001);
-   screen_dest_rect.h = (Uint16)(VideoGI->nominal_height * eys + 0.000000001);
-  }
- }
-
-
- //screen_dest_rect.y = 0;
- //screen_dest_rect.x = 0;
-
- // Quick and dirty kludge for VB's "hli" and "vli" 3D modes.
- screen_dest_rect.x &= ~1;
- screen_dest_rect.y &= ~1;
- //printf("%d %d\n", screen_dest_rect.x & 1, screen_dest_rect.y & 1);
-}
-
-// Argh, lots of thread safety and crashy problems with this, need to re-engineer code elsewhere.
-#if 0
-int VideoResize(int nw, int nh)
-{
- double xs, ys;
- char buf[256];
-
- if(VideoGI && !_fullscreen)
- {
-  std::string sn = std::string(VideoGI->shortname);
-
-  xs = (double)nw / VideoGI->nominal_width;
-  ys = (double)nh / VideoGI->nominal_height;
-
-  trio_snprintf(buf, 256, "%.30f", xs);
-//  MDFNI_SetSetting(sn + "." + std::string("xscale"), buf);
-
-  trio_snprintf(buf, 256, "%.30f", ys);
-//  MDFNI_SetSetting(sn + "." + std::string("yscale"), buf);
-
-  printf("%s, %d %d, %f %f\n", std::string(sn + "." + std::string("xscale")).c_str(), nw, nh, xs, ys);
-  return(1);
- }
-
- return(0);
-}
-#endif
 
 static bool weset_glstvb = false; 
 static uint32 real_rs, real_gs, real_bs, real_as;
 
 void Video_Init(MDFNGI *gi)
 {
- const SDL_VideoInfo *vinf;
- int flags = 0; //SDL_RESIZABLE;
- int desbpp;
+	const SDL_VideoInfo *vinf;
+	int flags = 0; //SDL_RESIZABLE;
+	int desbpp;
 
- VideoGI = gi;
+	VideoGI = gi;
 
- MDFNI_printf(_("Initializing video...\n"));
- MDFN_AutoIndent aindv(1);
+	MDFNI_printf(_("Initializing video...\n"));
+	MDFN_AutoIndent aindv(1);
 
+	osd_alpha_blend = MDFN_GetSettingB("osd.alpha_blend");
 
- #ifdef WIN32
- if(MDFN_GetSettingB("video.disable_composition"))
- {
-  static bool dwm_already_try_disable = false;
+	std::string snp = std::string(gi->shortname) + ".";
 
-  if(!dwm_already_try_disable)
-  {
-   HMODULE dwmdll;
+	const std::string special_string = MDFN_GetSettingS(snp + std::string("special"));
+	const unsigned special_id = MDFN_GetSettingUI(snp + std::string("special"));
 
-   dwm_already_try_disable = true;
+	_fullscreen = 0;			;
+	_video.xres = MDFN_GetSettingUI(snp + "xres");
+	_video.yres = MDFN_GetSettingUI(snp + "yres");
+	_video.xscale = 1;
+	_video.yscale = 1;
+	_video.xscalefs = 1;
+	_video.yscalefs = 1;
+	_video.videoip = 0;
+	_video.stretch = 0;
+	_video.scanlines = 0;
 
-   if((dwmdll = LoadLibrary("Dwmapi.dll")) != NULL)
-   {
-    HRESULT WINAPI (*p_DwmEnableComposition)(UINT) = (HRESULT WINAPI (*)(UINT))GetProcAddress(dwmdll, "DwmEnableComposition");
+	_video.special = special_id;
 
-    if(p_DwmEnableComposition != NULL)
-    {
-     p_DwmEnableComposition(0);
-    }
-   }
-  }
- }
- #endif
+	CurrentScaler = nullptr;
+	for(auto& scaler : Scalers)
+	if(_video.special == scaler.id)
+		CurrentScaler = &scaler;
+	assert(_video.special == NTVB_NONE || CurrentScaler);
 
- if(!IconSurface)
- {
-  #ifdef WIN32
-   #ifdef LSB_FIRST
-   IconSurface=SDL_CreateRGBSurfaceFrom((void *)mednafen_playicon.pixel_data,32,32,32,32*4,0xFF,0xFF00,0xFF0000,0xFF000000);
-   #else
-   IconSurface=SDL_CreateRGBSurfaceFrom((void *)mednafen_playicon.pixel_data,32,32,32,32*4,0xFF000000,0xFF0000,0xFF00,0xFF);
-   #endif
-  #else
-   #ifdef LSB_FIRST
-   IconSurface=SDL_CreateRGBSurfaceFrom((void *)mednafen_playicon128.pixel_data,128,128,32,128*4,0xFF,0xFF00,0xFF0000,0xFF000000);
-   #else
-   IconSurface=SDL_CreateRGBSurfaceFrom((void *)mednafen_playicon128.pixel_data,128,128,32,128*4,0xFF000000,0xFF0000,0xFF00,0xFF);
-   #endif
-  #endif
+	vinf = SDL_GetVideoInfo();
 
-  SDL_WM_SetIcon(IconSurface, 0);
- }
-
- osd_alpha_blend = MDFN_GetSettingB("osd.alpha_blend");
-
- std::string snp = std::string(gi->shortname) + ".";
-
- if(gi->GameType == GMT_PLAYER)
-  snp = "player.";
-
- const std::string special_string = MDFN_GetSettingS(snp + std::string("special"));
- const unsigned special_id = MDFN_GetSettingUI(snp + std::string("special"));
-
- _fullscreen = 0;			;
- _video.xres = MDFN_GetSettingUI(snp + "xres");
- _video.yres = MDFN_GetSettingUI(snp + "yres");
- _video.xscale = 1;
- _video.yscale = 1;
- _video.xscalefs = 1;
- _video.yscalefs = 1;
- _video.videoip = 0;
- _video.stretch = 0;
- _video.scanlines = 0;
-
- _video.special = special_id;
-
- CurrentScaler = nullptr;
- for(auto& scaler : Scalers)
-  if(_video.special == scaler.id)
-   CurrentScaler = &scaler;
- assert(_video.special == NTVB_NONE || CurrentScaler);
-
- vinf = SDL_GetVideoInfo();
-
- if(!best_xres)
- {
-  best_xres = vinf->current_w;
-  best_yres = vinf->current_h;
- }
+	if(!best_xres)
+	{
+		best_xres = vinf->current_w;
+		best_yres = vinf->current_h;
+	}
 
 
- if(vinf->hw_available)
-  flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
+	if(vinf->hw_available)
+		flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
 
- vdriver = MDFN_GetSettingI("video.driver");
+	vdriver = MDFN_GetSettingI("video.driver");
 
- exs = _fullscreen ? _video.xscalefs : _video.xscale;
- eys = _fullscreen ? _video.yscalefs : _video.yscale;
- evideoip = _video.videoip;
+	exs = _fullscreen ? _video.xscalefs : _video.xscale;
+	eys = _fullscreen ? _video.yscalefs : _video.yscale;
+	evideoip = _video.videoip;
 
 	desbpp = 32;
 
@@ -736,138 +483,83 @@ void Video_Init(MDFNGI *gi)
 	cur_flags = flags;
 	curbpp = screen->format->BitsPerPixel;
 
-	GenerateDestRect();
 
 	MDFN_printf(_("Video Mode: %d x %d x %d bpp\n"),screen->w,screen->h,screen->format->BitsPerPixel);
-	if(curbpp != 16 && curbpp != 24 && curbpp != 32)
+
+	MDFN_printf(_("Fullscreen: %s\n"), _fullscreen ? _("Yes") : _("No"));
+	MDFN_printf(_("Scanlines: Off\n"));
+	MDFN_printf(_("Destination Rectangle: X=%d, Y=%d, W=%d, H=%d\n"), screen_dest_rect.x, screen_dest_rect.y, screen_dest_rect.w, screen_dest_rect.h);
+
+	if(gi && gi->name.size() > 0)
 	{
-		unsigned cbpp_copy = curbpp;
-		Video_Kill();
-		throw MDFN_Error(0, _("Sorry, %dbpp modes are not supported by Mednafen.  Supported bit depths are 16bpp, 24bpp, and 32bpp.\n"), cbpp_copy);
+		const char* gics = gi->name.c_str();
+		SDL_WM_SetCaption(gics, gics);
+	}
+	else
+		SDL_WM_SetCaption("Mednafen", "Mednafen");
+
+	uint8_t rs, gs, bs, as;
+
+	rs = screen->format->Rshift;
+	gs = screen->format->Gshift;
+	bs = screen->format->Bshift;
+
+	as = 0;
+	while(as == rs || as == gs || as == bs) // Find unused 8-bits to use as our alpha channel
+		as += 8;
+
+	//printf("%d %d %d %d\n", rs, gs, bs, as);
+
+	SDL_ShowCursor(0);
+
+	real_rs = rs;
+	real_gs = gs;
+	real_bs = bs;
+	real_as = as;
+
+	{
+		int xmu = std::max<int>(1, screen->w / 402);
+		int ymu = std::max<int>(1, screen->h / 288);
+
+		SMRect.h = 18 + 2;
+		SMRect.x = 0;
+		SMRect.y = 0;
+		SMRect.w = screen->w;
+
+		SMDRect.w = SMRect.w * xmu;
+		SMDRect.h = SMRect.h * ymu;
+		SMDRect.x = (screen->w - SMDRect.w) / 2;
+		SMDRect.y = screen->h - SMDRect.h;
+
+		if(SMDRect.x < 0)
+		{
+			SMRect.w += SMDRect.x * 2 / xmu;
+			SMDRect.w = SMRect.w * xmu;
+			SMDRect.x = 0;
+		}
+		SMSurface = new MDFN_Surface(NULL, SMRect.w, SMRect.h, SMRect.w, MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as));
 	}
 
- //MDFN_printf(_("OpenGL: %s\n"), (cur_flags & SDL_OPENGL) ? _("Yes") : _("No"));
+	//MDFNI_SetPixelFormat(rs, gs, bs, as);
+	memset(&pf_normal, 0, sizeof(pf_normal));
+	memset(&pf_overlay, 0, sizeof(pf_overlay));
 
+	pf_normal.bpp = desbpp;
+	pf_normal.colorspace = MDFN_COLORSPACE_RGB;
+	pf_normal.Rshift = rs;
+	pf_normal.Gshift = gs;
+	pf_normal.Bshift = bs;
+	pf_normal.Ashift = as;
 
- MDFN_printf(_("Fullscreen: %s\n"), _fullscreen ? _("Yes") : _("No"));
- MDFN_printf(_("Special Scaler: %s\n"), (special_id == NTVB_NONE) ? _("None") : special_string.c_str());
+	//SetPixelFormatHax((vdriver == VDRIVER_OVERLAY) ? pf_overlay : pf_normal); //rs, gs, bs, as);
 
- if(!_video.scanlines)
-  MDFN_printf(_("Scanlines: Off\n"));
- else
-  MDFN_printf(_("Scanlines: %d%% opacity%s\n"), abs(_video.scanlines), (_video.scanlines < 0) ? _(" (with interlace field obscure)") : "");
+	for(int i = 0; i < 2; i++)
+	{
+		ClearBackBuffer();
+		SDL_Flip(screen);
+	}
 
- MDFN_printf(_("Destination Rectangle: X=%d, Y=%d, W=%d, H=%d\n"), screen_dest_rect.x, screen_dest_rect.y, screen_dest_rect.w, screen_dest_rect.h);
- if(screen_dest_rect.x < 0 || screen_dest_rect.y < 0 || (screen_dest_rect.x + screen_dest_rect.w) > screen->w || (screen_dest_rect.y + screen_dest_rect.h) > screen->h)
- {
-  MDFN_AutoIndent ainddr;
-  MDFN_printf(_("Warning:  Destination rectangle exceeds screen dimensions.  This is ok if you really do want the clipping...\n"));
- }
-
- if(gi && gi->name.size() > 0)
- {
-  const char* gics = gi->name.c_str();
-
-  SDL_WM_SetCaption(gics, gics);
- }
- else
-  SDL_WM_SetCaption("Mednafen", "Mednafen");
-
- int rs, gs, bs, as;
-
-
- {
-  rs = screen->format->Rshift;
-  gs = screen->format->Gshift;
-  bs = screen->format->Bshift;
-
-  as = 0;
-  while(as == rs || as == gs || as == bs) // Find unused 8-bits to use as our alpha channel
-   as += 8;
- }
-
- //printf("%d %d %d %d\n", rs, gs, bs, as);
-
- SDL_ShowCursor(0);
-
- real_rs = rs;
- real_gs = gs;
- real_bs = bs;
- real_as = as;
-
- /* HQXX only supports this pixel format, sadly, and other pixel formats
-    can't be easily supported without rewriting the filters.
-    We do conversion to the real screen format in the blitting function. 
- */
- if(CurrentScaler) {
-#ifdef WANT_FANCY_SCALERS
-  if(CurrentScaler->id == NTVB_HQ2X || CurrentScaler->id == NTVB_HQ3X || CurrentScaler->id == NTVB_HQ4X)
-  {
-   rs = 16;
-   gs = 8;
-   bs = 0;
-   as = 24;
-  }
-  else if(CurrentScaler->id == NTVB_2XSAI || CurrentScaler->id == NTVB_SUPER2XSAI || CurrentScaler->id == NTVB_SUPEREAGLE)
-  {
-   Init_2xSaI(screen->format->BitsPerPixel, 555); // systemColorDepth, BitFormat
-  }
-#endif
- }
-
- {
-  int xmu = std::max<int>(1, screen->w / 402);
-  int ymu = std::max<int>(1, screen->h / 288);
-
-  SMRect.h = 18 + 2;
-  SMRect.x = 0;
-  SMRect.y = 0;
-  SMRect.w = screen->w;
-
-  SMDRect.w = SMRect.w * xmu;
-  SMDRect.h = SMRect.h * ymu;
-  SMDRect.x = (screen->w - SMDRect.w) / 2;
-  SMDRect.y = screen->h - SMDRect.h;
-
-  if(SMDRect.x < 0)
-  {
-   SMRect.w += SMDRect.x * 2 / xmu;
-   SMDRect.w = SMRect.w * xmu;
-   SMDRect.x = 0;
-  }
-  SMSurface = new MDFN_Surface(NULL, SMRect.w, SMRect.h, SMRect.w, MDFN_PixelFormat(MDFN_COLORSPACE_RGB, real_rs, real_gs, real_bs, real_as));
- }
-
- //MDFNI_SetPixelFormat(rs, gs, bs, as);
- memset(&pf_normal, 0, sizeof(pf_normal));
- memset(&pf_overlay, 0, sizeof(pf_overlay));
-
- pf_normal.bpp = 32;
- pf_normal.colorspace = MDFN_COLORSPACE_RGB;
- pf_normal.Rshift = rs;
- pf_normal.Gshift = gs;
- pf_normal.Bshift = bs;
- pf_normal.Ashift = as;
-
- if(vdriver == VDRIVER_OVERLAY)
- {
-  pf_overlay.bpp = 32;
-  pf_overlay.colorspace = MDFN_COLORSPACE_YCbCr;
-  pf_overlay.Yshift = 0;
-  pf_overlay.Ushift = 8;
-  pf_overlay.Vshift = 16;
-  pf_overlay.Ashift = 24;
- }
-
- //SetPixelFormatHax((vdriver == VDRIVER_OVERLAY) ? pf_overlay : pf_normal); //rs, gs, bs, as);
-
- for(int i = 0; i < 2; i++)
- {
-  ClearBackBuffer();
-   SDL_Flip(screen);
- }
-
- MarkNeedBBClear();
+	MarkNeedBBClear();
 }
 
 static uint32 howlong = 0;

@@ -28,7 +28,6 @@
 #include "Joystick.h"
 #include "fps.h"
 #include "debugger.h"
-#include "help.h"
 #include "rmdui.h"
 
 extern JoystickManager *joy_manager;
@@ -886,7 +885,7 @@ void Input_Event(const SDL_Event *event)
 static void UpdatePhysicalDeviceState(void)
 {
  const bool clearify_mdr = true;
- int mouse_x = MouseState.x, mouse_y = MouseState.y;
+ /*int mouse_x = MouseState.x, mouse_y = MouseState.y;
 
  //printf("%08x -- %08x %08x\n", MouseState.button & (MouseState.button_realstate | ~MouseState.button_prevsent), MouseState.button, MouseState.button_realstate);
 
@@ -931,7 +930,7 @@ static void UpdatePhysicalDeviceState(void)
  if(MDFNDHaveFocus || MDFN_GetSettingB("input.joystick.global_focus"))
   joy_manager->UpdateJoysticks();
 
- CurTicks = Time::MonoMS();
+ CurTicks = Time::MonoMS();*/
 }
 
 static void RedoFFSF(void)
@@ -1126,11 +1125,6 @@ static void CheckCommandKeys(void)
   {
    SendCEvent(CEVT_WANT_EXIT, NULL, NULL);
   }
-
-  if(CK_Check(CK_TOGGLE_HELP))
-   Help_Toggle();
-
-
 
   if(CK_Check(CK_TOGGLE_FPS_VIEW))
    FPS_ToggleView();

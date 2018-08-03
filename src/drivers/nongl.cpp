@@ -31,7 +31,7 @@ static void BlitStraight(const MDFN_Surface *src_surface, const MDFN_Rect *src_r
 	for(int32 y = 0; y < 232; y++)
 	{
 		memcpy(dest_surface->pixels, src_pixels, 256 * sizeof(T));
-		src_pixels += 1024;
+		src_pixels += 256 * sizeof(T);
 		dest_surface->pixels += 256;
 	}
 }
@@ -45,6 +45,5 @@ void MDFN_StretchBlitSurface(const MDFN_Surface* src_surface, const MDFN_Rect& s
 	sr = src_rect;
 	o_sr = *original_src_rect;
 	dr = dest_rect;
-	//printf("%d:%d, %d:%d, %d:%d\n", sr.x, sr.w, sr.y, sr.h, src_surface->w, src_surface->h);
 	BlitStraight<uint32, 31>(src_surface, &sr, dest_surface, &dr);
 }
