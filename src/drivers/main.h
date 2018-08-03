@@ -62,7 +62,7 @@ bool IsInFrameAdvance(void);
 
 void DebuggerFudge(void);
 
-extern volatile int GameThreadRun;
+extern uint8_t GameThreadRun;
 
 void GT_ToggleFS(void);
 bool GT_ReinitVideo(void);

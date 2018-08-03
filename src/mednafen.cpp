@@ -27,8 +27,7 @@
 
 #include	"state.h"
 #include	"movie.h"
-#include	"state_rewind.h"
-#include        "video.h"
+#include    "video.h"
 #include	"video/Deinterlacer.h"
 #include	"file.h"
 #include	"sound/WAVRecord.h"
@@ -230,7 +229,6 @@ void MDFNI_CloseGame(void)
  if(MDFNGameInfo)
  {
 
-  MDFNSRW_End();
   MDFNMOV_Stop();
 
   if(MDFNGameInfo->GameType != GMT_PLAYER)
@@ -684,8 +682,6 @@ static MDFN_COLD void LoadCommonPost(const char* path)
 	SettingChanged("video.deinterlacer");
 
 	TBlur_Init();
-
-	MDFNSRW_Begin();
 
 	LastSoundMultiplier = 1;
 	last_sound_rate = -1;
@@ -1330,35 +1326,6 @@ static void ProcessAudio(EmulateSpecStruct *espec)
   int32 SoundBufSize = espec->SoundBufSize - espec->SoundBufSizeALMS;
   const int32 SoundBufMaxSize = espec->SoundBufMaxSize - espec->SoundBufSizeALMS;
 
-  //
-  // Sound reverse code goes before copying sound data to SoundBufPristine.
-  //
-  if(espec->NeedSoundReverse)
-  {
-   int16 *yaybuf = SoundBuf;
-   int32 slen = SoundBufSize;
-
-   if(MDFNGameInfo->soundchan == 1)
-   {
-    for(int x = 0; x < (slen / 2); x++)    
-    {
-     int16 cha = yaybuf[slen - x - 1];
-     yaybuf[slen - x - 1] = yaybuf[x];
-     yaybuf[x] = cha;
-    }
-   }
-   else if(MDFNGameInfo->soundchan == 2)
-   {
-    for(int x = 0; x < (slen * 2) / 2; x++)
-    {
-     int16 cha = yaybuf[slen * 2 - (x&~1) - ((x&1) ^ 1) - 1];
-     yaybuf[slen * 2 - (x&~1) - ((x&1) ^ 1) - 1] = yaybuf[x];
-     yaybuf[x] = cha;
-    }
-   }
-  }
-
-
 
   try
   {
@@ -1543,10 +1510,6 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
  if(TBlur_IsOn())
   espec->skip = 0;
 
- // Don't even save states with state rewinding if netplay is enabled, it will degrade netplay performance, and can cause
- // desynchs with some emulation(IE SNES based on bsnes).
-
-  espec->NeedSoundReverse = MDFNSRW_Frame(espec->NeedRewind);
 
  MDFNGameInfo->Emulate(espec);
 

@@ -1198,13 +1198,6 @@ static void CheckCommandKeys(void)
   else
 	DNeedRewind = false;
 
-  if(CK_Check(CK_STATE_REWIND_TOGGLE))
-  {
-   RewindState = !RewindState;
-   MDFNI_EnableStateRewind(RewindState);
-
-   MDFNI_DispMessage(RewindState ? _("State rewinding functionality enabled.") : _("State rewinding functionality disabled."));
-  }
 
   {
    bool previous_ff = inff;

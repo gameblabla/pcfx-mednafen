@@ -53,8 +53,6 @@
 #include <mednafen/MemoryStream.h>
 #include <mednafen/file.h>
 
-static int StateSLSTest = false;
-static int StateRCTest = false;	// Rewind consistency
 
 JoystickManager *joy_manager = NULL;
 bool MDFNDHaveFocus;
@@ -198,8 +196,6 @@ void MakeDebugSettings(std::vector <MDFNSetting> &settings)
  }
  #endif
 }
-
-static MDFN_Thread* GameThread;
 
 static struct
 {
@@ -686,9 +682,6 @@ static int DoArgs(int argc, char *argv[], char **filename)
 
 	 { "mtetest", NULL, &mtetest, 0, 0 },
 
-	 { "stateslstest", NULL, &StateSLSTest, 0, 0 },
-	 { "staterctest", NULL, &StateRCTest, 0, 0 },
-
 	 { 0, 0, 0, 0 }
         };
 
@@ -759,8 +752,8 @@ static int DoArgs(int argc, char *argv[], char **filename)
 }
 
 static int volatile NeedVideoChange = 0;
-int GameLoop(void *arg);
-int volatile GameThreadRun = 0;
+int GameLoop();
+uint8_t GameThreadRun = 0;
 static bool MDFND_Update(int WhichVideoBuffer, int16 *Buffer, int Count);
 
 bool sound_active;	// true if sound is enabled and initialized
@@ -835,18 +828,11 @@ static int LoadGame(const char *force_module, const char *path)
         }
 
 	ffnosound = MDFN_GetSettingB("ffnosound");
-	RewindState = MDFN_GetSettingB("srwautoenable");
-	if(RewindState)
-	{
-	 MDFN_DispMessage(_("State rewinding functionality enabled."));
-	 MDFNI_EnableStateRewind(RewindState);
-	}
 
 	//
 	// Game thread creation should come lastish.
 	//
 	GameThreadRun = 1;
-	GameThread = MDFND_CreateThread(GameLoop, NULL);
 
 	return 1;
 }
@@ -856,12 +842,8 @@ int CloseGame(void)
 {
 	if(!CurGame) return(0);
 
-	GameThreadRun = 0;
-
-	MDFND_WaitThread(GameThread, NULL);
-
-        if(soundrecfn)
-         MDFNI_StopWAVRecord();
+	if(soundrecfn)
+		MDFNI_StopWAVRecord();
 
 	if(MDFN_GetSettingB("autosave"))
 	 MDFNI_SaveState(NULL, "mca", NULL, NULL, NULL);
@@ -934,164 +916,91 @@ void DebuggerFudge(void)
  }
 }
 
-int GameLoop(void *arg)
+int GameLoop()
 {
-	while(GameThreadRun)
-	{
-         int16 *sound;
-         int32 ssize;
-         bool fskip;
+	int16 *sound;
+	int32 ssize;
+	bool fskip;
         
 	 /* If we requested a new video mode, wait until it's set before calling the emulation code again.
 	 */
-	 while(NeedVideoChange)
-	 {
-	  if(!GameThreadRun) return(1);	// Might happen if video initialization failed
-	  Time::SleepMS(2);
-	 }
-
-	 if(Sound_NeedReInit())
-	  GT_ReinitSound();
-
-	 //
-	 //
-	 fskip = ers.NeedFrameSkip();
-	 fskip &= MDFN_GetSettingB("video.frameskip");
-	 fskip &= !(pending_ssnapshot || pending_snapshot || pending_save_state || pending_save_movie || NeedFrameAdvance);
-	 fskip |= (bool)NoWaiting;
-
-	 //printf("fskip %d; NeedFrameAdvance=%d\n", fskip, NeedFrameAdvance);
-
-	 NeedFrameAdvance = false;
-	 //
-	 //
-	 SoftFB[SoftFB_BackBuffer].lw[0] = ~0;
-
-	 //
-	 //
-	 //
-	 EmulateSpecStruct espec;
-
- 	 memset(&espec, 0, sizeof(EmulateSpecStruct));
-
-         espec.surface = SoftFB[SoftFB_BackBuffer].surface.get();
-         espec.LineWidths = SoftFB[SoftFB_BackBuffer].lw.get();
-	 espec.skip = fskip;
-	 espec.soundmultiplier = CurGameSpeed;
-	 espec.NeedRewind = DNeedRewind;
-
- 	 espec.SoundRate = Sound_GetRate();
-	 espec.SoundBuf = Sound_GetEmuModBuffer(&espec.SoundBufMaxSize);
- 	 espec.SoundVolume = (double)MDFN_GetSettingUI("sound.volume") / 100;
-
-	 if(MDFN_UNLIKELY(StateRCTest))
-	 {
-	  // Note: Won't work correctly with modules that do mid-sync.
-	  EmulateSpecStruct estmp = espec;
-
-	  MemoryStream state0(524288);
-	  MemoryStream state1(524288);
-	  MemoryStream state2(524288);
-
-	  MDFNSS_SaveSM(&state0);
-	  MDFNI_Emulate(&espec);
-	  espec = estmp;
-
-	  MDFNSS_SaveSM(&state1);
-	  state0.rewind();
-	  MDFNSS_LoadSM(&state0);
-	  MDFNI_Emulate(&espec);
-	  MDFNSS_SaveSM(&state2);
-
-	  if(!(state1.map_size() == state2.map_size() && !memcmp(state1.map() + 32, state2.map() + 32, state1.map_size() - 32)))
-	  {
-	   FileStream sd0("/tmp/sdump0", FileStream::MODE_WRITE);
-	   FileStream sd1("/tmp/sdump1", FileStream::MODE_WRITE);
-
-	   sd0.write(state1.map(), state1.map_size());
-	   sd1.write(state2.map(), state2.map_size());
-	   sd0.close();
-	   sd1.close();
-	   //assert(orig_state.map_size() == new_state.map_size() && !memcmp(orig_state.map() + 32, new_state.map() + 32, orig_state.map_size() - 32));
-	   abort();
-	  }
-	 }
-	 else
-          MDFNI_Emulate(&espec);
-
-	 if(MDFN_UNLIKELY(StateSLSTest))
-	 {
-	  MemoryStream orig_state(524288);
-	  MemoryStream new_state(524288);
-
-	  MDFNSS_SaveSM(&orig_state);
-	  orig_state.rewind();
-	  MDFNSS_LoadSM(&orig_state);
-	  MDFNSS_SaveSM(&new_state);
-
-	  if(!(orig_state.map_size() == new_state.map_size() && !memcmp(orig_state.map() + 32, new_state.map() + 32, orig_state.map_size() - 32)))
-	  {
-	   FileStream sd0("/tmp/sdump0", FileStream::MODE_WRITE);
-	   FileStream sd1("/tmp/sdump1", FileStream::MODE_WRITE);
-
-	   sd0.write(orig_state.map(), orig_state.map_size());
-	   sd1.write(new_state.map(), new_state.map_size());
-	   sd0.close();
-	   sd1.close();
-	   //assert(orig_state.map_size() == new_state.map_size() && !memcmp(orig_state.map() + 32, new_state.map() + 32, orig_state.map_size() - 32));
-	   abort();
-	  }
-	 }
-
-	 ers.AddEmuTime((espec.MasterCycles - espec.MasterCyclesALMS) / CurGameSpeed);
-
-	 SoftFB[SoftFB_BackBuffer].rect = espec.DisplayRect;
-	 SoftFB[SoftFB_BackBuffer].field = espec.InterlaceOn ? espec.InterlaceField : -1;
-
-	 sound = espec.SoundBuf + (espec.SoundBufSizeALMS * CurGame->soundchan);
-	 ssize = espec.SoundBufSize - espec.SoundBufSizeALMS;
-	 //
-	 //
-	 //
-
-	 FPS_IncVirtual();
-	 if(!fskip)
-	  FPS_IncDrawn();
-
-
-	 {
-	  bool do_flip = false;
-
-	  do
-	  {
- 	   if(fskip && ((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused))
-	   {
-	    // If this frame was skipped, and the game loop is paused(IE cheat interface is active) or we're in frame advance, just blit the last
-	    // drawn, non-skipped frame so the OSD elements actually get drawn.
-	    //
-	    // Needless to say, do not allow do_flip to be set to true here.
-	    //
-	    // Possible problems with this kludgery:
-	    //	Will fail spectacularly if there is no previous successful frame.  BOOOOOOM.  (But there always should be, especially since we initialize some
-  	    //   of the video buffer and rect structures during startup)
-	    //
-            MDFND_Update(SoftFB_BackBuffer ^ 1, sound, ssize);
-	   }
-	   else
-            do_flip = MDFND_Update(fskip ? -1 : SoftFB_BackBuffer, sound, ssize);
-
-	   FPS_UpdateCalc();
-
-           if((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused)
-	   {
-            if(ssize)
-	     for(int x = 0; x < CurGame->soundchan * ssize; x++)
-	      sound[x] = 0;
-	   }
-	  } while(((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused) && GameThreadRun);
-	  SoftFB_BackBuffer ^= do_flip;
-	 }
+	while(NeedVideoChange)
+	{
+		if(!GameThreadRun) return 1;	// Might happen if video initialization failed
 	}
+
+	if(Sound_NeedReInit())
+		GT_ReinitSound();
+
+	//
+	//
+	fskip = ers.NeedFrameSkip();
+	fskip &= MDFN_GetSettingB("video.frameskip");
+	fskip &= !(pending_ssnapshot || pending_snapshot || pending_save_state || pending_save_movie || NeedFrameAdvance);
+	fskip |= (bool)NoWaiting;
+
+	//printf("fskip %d; NeedFrameAdvance=%d\n", fskip, NeedFrameAdvance);
+
+	NeedFrameAdvance = false;
+	SoftFB[SoftFB_BackBuffer].lw[0] = ~0;
+	EmulateSpecStruct espec;
+
+	memset(&espec, 0, sizeof(EmulateSpecStruct));
+
+	espec.surface = SoftFB[SoftFB_BackBuffer].surface.get();
+	espec.LineWidths = SoftFB[SoftFB_BackBuffer].lw.get();
+	espec.skip = fskip;
+	espec.soundmultiplier = CurGameSpeed;
+	espec.NeedRewind = DNeedRewind;
+
+	espec.SoundRate = Sound_GetRate();
+	espec.SoundBuf = Sound_GetEmuModBuffer(&espec.SoundBufMaxSize);
+	espec.SoundVolume = (double)MDFN_GetSettingUI("sound.volume") / 100;
+	MDFNI_Emulate(&espec);
+
+	ers.AddEmuTime((espec.MasterCycles - espec.MasterCyclesALMS) / CurGameSpeed);
+
+	SoftFB[SoftFB_BackBuffer].rect = espec.DisplayRect;
+	SoftFB[SoftFB_BackBuffer].field = espec.InterlaceOn ? espec.InterlaceField : -1;
+
+	sound = espec.SoundBuf + (espec.SoundBufSizeALMS * CurGame->soundchan);
+	ssize = espec.SoundBufSize - espec.SoundBufSizeALMS;
+
+	FPS_IncVirtual();
+	if(!fskip)
+		FPS_IncDrawn();
+
+	bool do_flip = false;
+
+	do
+	{
+		if(fskip && ((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused))
+		{
+			// If this frame was skipped, and the game loop is paused(IE cheat interface is active) or we're in frame advance, just blit the last
+			// drawn, non-skipped frame so the OSD elements actually get drawn.
+			//
+			// Needless to say, do not allow do_flip to be set to true here.
+			//
+			// Possible problems with this kludgery:
+			//	Will fail spectacularly if there is no previous successful frame.  BOOOOOOM.  (But there always should be, especially since we initialize some
+			//   of the video buffer and rect structures during startup)
+			//
+			MDFND_Update(SoftFB_BackBuffer ^ 1, sound, ssize);
+		}
+		else
+			do_flip = MDFND_Update(fskip ? -1 : SoftFB_BackBuffer, sound, ssize);
+
+		FPS_UpdateCalc();
+
+		if((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused)
+		{
+			if(ssize)
+				for(int x = 0; x < CurGame->soundchan * ssize; x++)
+					sound[x] = 0;
+		}
+	} 
+	while(((InFrameAdvance && !NeedFrameAdvance) || GameLoopPaused) && GameThreadRun);
+	SoftFB_BackBuffer ^= do_flip;
 
 	return(1);
 }   
@@ -1505,98 +1414,6 @@ char *GetFileDialog(void)
 }
 #endif
 
-#if 0
-static MDFN_Mutex* milk_mutex = NULL;
-static MDFN_Cond* milk_cond = NULL;
-static volatile unsigned cow_milk = 0;
-static volatile unsigned farmer_milk = 0;
-static volatile unsigned calf_milk = 0;
-static volatile unsigned am3000_milk = 0;
-
-static int CowEntry(void*)
-{
- uint32 start_time = Time::MonoMS();
-
- for(unsigned i = 0; i < 1000 * 1000; i++)
- {
-  MDFND_LockMutex(milk_mutex);
-  cow_milk++;
-
-  MDFND_SignalCond(milk_cond);
-  MDFND_UnlockMutex(milk_mutex);
-
-  while(cow_milk != 0);
- }
-
- while(cow_milk != 0);
-
- return(Time::MonoMS() - start_time);
-}
-
-static int FarmerEntry(void*)
-{
- MDFND_LockMutex(milk_mutex);
- while(1)
- {
-  MDFND_WaitCond(milk_cond, milk_mutex);
-
-  farmer_milk += cow_milk;
-  cow_milk = 0;
- }
- MDFND_UnlockMutex(milk_mutex);
- return(0);
-}
-
-static int CalfEntry(void*)
-{
- MDFND_LockMutex(milk_mutex);
- while(1)
- {
-  MDFND_WaitCond(milk_cond, milk_mutex);
-
-  calf_milk += cow_milk;
-  cow_milk = 0;
- }
- MDFND_UnlockMutex(milk_mutex);
- return(0);
-}
-
-static int AutoMilker3000Entry(void*)
-{
- MDFND_LockMutex(milk_mutex);
- while(1)
- {
-  MDFND_WaitCond(milk_cond, milk_mutex);
-
-  am3000_milk += cow_milk;
-  cow_milk = 0;
- }
- MDFND_UnlockMutex(milk_mutex);
- return(0);
-}
-
-static void ThreadTest(void)
-{
- MDFN_Thread *cow_thread, *farmer_thread, *calf_thread, *am3000_thread;
- int rec;
-
- milk_mutex = MDFND_CreateMutex();
- milk_cond = MDFND_CreateCond();
-
- //farmer_thread = MDFND_CreateThread(FarmerEntry, NULL);
- //calf_thread = MDFND_CreateThread(CalfEntry, NULL);
- //am3000_thread = MDFND_CreateThread(AutoMilker3000Entry, NULL);
-
- cow_thread = MDFND_CreateThread(CowEntry, NULL);
- MDFND_WaitThread(cow_thread, &rec);
-
- printf("%8u %8u %8u --- %8u, time=%u\n", farmer_milk, calf_milk, am3000_milk, farmer_milk + calf_milk + am3000_milk, rec);
-
- exit(0);
-}
-
-#endif
-
 static bool HandleVideoChange(void)
 {
  if(NeedVideoChange == -1)
@@ -1858,8 +1675,8 @@ for(int zgi = 1; zgi < argc; zgi++)// start game load test loop
            VTReady.store(-1, std::memory_order_release);	// Set to -1 after we're done blitting everything(including on-screen display stuff), and NOT just the emulated system's video surface.
           }
 	 }
-
-	 PumpWrap();
+		GameLoop();
+		PumpWrap();
 	 if(DidVideoChange)	// Do it after PumpWrap() in case there are stale SDL_ActiveEvent in the SDL event queue.
 	  SendCEvent_to_GT(CEVT_SET_INPUT_FOCUS, (char*)0 + (bool)(SDL_GetAppState() & SDL_APPINPUTFOCUS), NULL);
 
@@ -1875,9 +1692,6 @@ for(int zgi = 1; zgi < argc; zgi++)// start game load test loop
 	 SoftFB[i].surface.reset(nullptr);
 	 SoftFB[i].lw.reset(nullptr);
 	}
-#if 0
-} // end game load test loop
-#endif
 
 	MDFND_DestroySem(VTWakeupSem);
 

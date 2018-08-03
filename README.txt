@@ -40,6 +40,14 @@ We need to switch to using the C library instead and remove those that we can't 
 They are useful for checking Mednafen and whetever it would crash or not.
 Maybe put it behind a DEBUG flag ?
 
+# Make it mono-threaded, rather than multi-threaded
+Chances are, if it does not run well mono-threaded for something like this then i've failed !
+I've managed to remove the GameThread, which now runs inside of the main loop.
+The only thread stuff that is left is cdromif.cpp, which uses a thread for CD stuff.
+
+# Fix frameskipping
+It doesn't seem to work at all for PC-FX. (but it did for other consoles)
+
 # Remove exceptions and/or eventually switch to C
 Mednafen extensively uses C++ exceptions so it might be difficult but it would be the first step towards a C codebase. 
 We could not care about handling exceptions and assume everything goes fine but that wouldn't be the proper way to do it.
