@@ -180,12 +180,6 @@ int32 MDFN_FASTCALL pcfx_event_handler(const v810_timestamp_t timestamp)
      if(timestamp >= next_adpcm_ts)
       next_adpcm_ts = SoundBox_ADPCMUpdate(timestamp);
 
-#if 1
-     assert(next_king_ts > timestamp);
-     assert(next_pad_ts > timestamp);
-     assert(next_timer_ts > timestamp);
-     assert(next_adpcm_ts > timestamp);
-#endif
      return(CalcNextTS());
 }
 
@@ -272,13 +266,13 @@ static void Emulate(EmulateSpecStruct *espec)
 	// new_base_ts is guaranteed to be <= v810_timestamp
 	//
 	v810_timestamp_t new_base_ts;
-	espec->SoundBufSize = SoundBox_Flush(v810_timestamp, &new_base_ts, espec->SoundBuf, espec->SoundBufMaxSize, espec->NeedSoundReverse);
+	espec->SoundBufSize = SoundBox_Flush(v810_timestamp, espec->SoundBuf, espec->SoundBufMaxSize);
 	espec->NeedSoundReverse = false;
 
 	KING_ResetTS(new_base_ts);
 	FXTIMER_ResetTS(new_base_ts);
 	FXINPUT_ResetTS(new_base_ts);
-	SoundBox_ResetTS(new_base_ts);
+	SoundBox_ResetTS();
 
 	// Call this AFTER all the EndFrame/Flush/ResetTS stuff
 	RebaseTS(v810_timestamp, new_base_ts);
@@ -346,7 +340,7 @@ static void PCFX_Reset(void)
 	}
 
 	KING_Reset(timestamp);	// SCSICD_Power() is called from KING_Reset()
-	SoundBox_Reset(timestamp);
+	SoundBox_Reset();
 	RAINBOW_Reset();
 
 	if(WantHuC6273)

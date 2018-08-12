@@ -240,6 +240,9 @@ static INLINE uint64 round_nearest_pow2(int64 v, bool round_half_up = true) { re
 #define sign_14_to_s16(_value)  (((int16)((uint32)(_value) << 2)) >> 2)
 #define sign_15_to_s16(_value)  (((int16)((uint32)(_value) << 1)) >> 1)
 
+#define INT_TO_BCD(A)  (((A) / 10) * 16 + ((A) % 10))              // convert INT --> BCD
+#define BCD_TO_INT(B)  (((B) / 16) * 10 + ((B) % 16))              // convert BCD --> INT
+
 // This obviously won't convert higher-than-32 bit numbers to signed 32-bit ;)
 // Also, this shouldn't be used for 8-bit and 16-bit signed numbers, since you can
 // convert those faster with typecasts...

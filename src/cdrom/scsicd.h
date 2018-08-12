@@ -1,6 +1,8 @@
 #ifndef __PCFX_SCSICD_H
 #define __PCFX_SCSICD_H
 
+#include <Blip_Buffer.h>
+
 typedef int32 scsicd_timestamp_t;
 
 typedef struct
@@ -87,7 +89,7 @@ void SCSICD_GetCDDAValues(int16 &left, int16 &right);
 
 void SCSICD_SetLog(void (*logfunc)(const char *, const char *, ...));
 
-void SCSICD_Init(int type, int CDDATimeDiv, int32* left_hrbuf, int32* right_hrbuf, uint32 TransferRate, uint32 SystemClock, void (*IRQFunc)(int), void (*SSCFunc)(uint8, int)) MDFN_COLD;
+void SCSICD_Init(int type, int CDDATimeDiv, Blip_Buffer* left_hrbuf, Blip_Buffer* right_hrbuf, uint32 TransferRate, uint32 SystemClock, void (*IRQFunc)(int), void (*SSCFunc)(uint8, int)) MDFN_COLD;
 void SCSICD_Close(void) MDFN_COLD;
 
 void SCSICD_SetTransferRate(uint32 TransferRate);

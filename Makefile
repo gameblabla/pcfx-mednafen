@@ -8,7 +8,7 @@ LD          = g++
 # change compilation / linking flag options
 F_OPTS		=  -I./include -I./src/thread -I.
 F_OPTS 		+= -DHAVE_CONFIG_H 
-DEFINES    += -I/usr/include/SDL -Isrc/pcfx/input -Isrc/pcfx
+DEFINES    += -I/usr/include/SDL -Isrc/pcfx/input -Isrc/pcfx -Isrc/sound -Isrc/mpcdec
 DEFINES    += -DLOCALEDIR=\"/usr/local/share/locale\" -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT
 
 CC_OPTS		= -O2 -g $(F_OPTS) $(DEFINES) -march=native -mtune=native
@@ -39,7 +39,6 @@ OBJS     = $(OBJ_C) $(OBJ_CP)
 
 # Rules to make executable
 all: $(PRGNAME) 
-
 
 $(PRGNAME): $(OBJS)  
 	$(LD) $(CFLAGS) -o $(PRGNAME) $^ $(LDFLAGS)

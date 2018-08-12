@@ -17,6 +17,7 @@
 
 #include <mednafen/mednafen.h>
 #include <trio/trio.h>
+#include <Blip_Buffer.h>
 #include "scsicd.h"
 #include "cdromif.h"
 #include "SimpleFIFO.h"
@@ -35,7 +36,7 @@ static uint32 CD_DATA_TRANSFER_RATE;
 static uint32 System_Clock;
 static void (*CDIRQCallback)(int);
 static void (*CDStuffSubchannels)(uint8, int);
-static int32* HRBufs[2];
+static Blip_Buffer* HRBufs[2];
 static int WhichSystem;
 
 static CDIF *Cur_CDIF;
@@ -2575,28 +2576,6 @@ static INLINE void RunCDDA(uint32 system_timestamp, int32 run_time)
      cdda.sr[1] = cdda.CDDASectorBuffer[cdda.CDDAReadPos * 2 + cdda.OutPortChSelectCache[1]];
     }
 
-#if 0
-    {
-     static int16 wv = 0x7FFF; //0x5000;
-     static unsigned counter = 0;
-     static double phase = 0;
-     static double phase_inc = 0;
-     static const double phase_inc_inc = 0.000003 / 2;
-
-     cdda.sr[0] = 32767 * sin(phase);
-     cdda.sr[1] = 32767 * sin(phase);
-
-     //cdda.sr[0] = wv;
-     //cdda.sr[1] = wv;
-
-     if(counter == 0)
-      wv = -wv;
-     counter = (counter + 1) & 1;
-     phase += phase_inc;
-     phase_inc += phase_inc_inc;
-    }
-#endif
-
     {
      const unsigned obwp = cdda.OversamplePos >> 1;
      cdda.OversampleBuffer[0][obwp] = cdda.OversampleBuffer[0][0x10 + obwp] = cdda.sr[0];
@@ -2700,8 +2679,8 @@ static INLINE void RunCDDA(uint32 system_timestamp, int32 run_time)
 		 CDDA_Filter[1 + synthtime_phase_int + 1][c] * mult_b);
     }
 
-    int32* tb0 = &HRBufs[0][synthtime];
-    int32* tb1 = &HRBufs[1][synthtime];
+    int32* tb0 = (int32*) &HRBufs[0][synthtime];
+    int32* tb1 = (int32*) &HRBufs[1][synthtime];
 
     for(unsigned c = 0; c < CDDA_FILTER_NUMCONVOLUTIONS; c++)
     {
@@ -3091,7 +3070,7 @@ void SCSICD_Close(void)
  }
 }
 
-void SCSICD_Init(int type, int cdda_time_div, int32* left_hrbuf, int32* right_hrbuf, uint32 TransferRate, uint32 SystemClock, void (*IRQFunc)(int), void (*SSCFunc)(uint8, int))
+void SCSICD_Init(int type, int cdda_time_div, Blip_Buffer* left_hrbuf, Blip_Buffer* right_hrbuf, uint32 TransferRate, uint32 SystemClock, void (*IRQFunc)(int), void (*SSCFunc)(uint8, int))
 {
  Cur_CDIF = NULL;
  TrayOpen = true;

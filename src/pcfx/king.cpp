@@ -38,6 +38,7 @@
 
 #include "pcfx.h"
 #include "king.h"
+#include "soundbox.h"
 #include <mednafen/cdrom/scsicd.h>
 #include "interrupt.h"
 #include "rainbow.h"
@@ -1560,7 +1561,7 @@ uint16 KING_GetADPCMHalfWord(int ch)
  return(ret);
 }
 
-extern RavenBuffer* FXCDDABufs[2]; // FIXME, externals are evil!
+//extern RavenBuffer* FXCDDABufs[2]; // FIXME, externals are evil!
 
 static void Cleanup(void)
 {
@@ -1570,7 +1571,7 @@ static void Cleanup(void)
   king = NULL;
  }
 
- SCSICD_Close();
+ //SCSICD_Close();
 }
 
 void KING_Init(void)
@@ -1638,7 +1639,7 @@ void KING_Init(void)
      }
     }
 
-  SCSICD_Init(SCSICD_PCFX, 3, FXCDDABufs[0]->Buf(), FXCDDABufs[1]->Buf(), 153600 * MDFN_GetSettingUI("pcfx.cdspeed"), 21477273, KING_CDIRQ, KING_StuffSubchannels);
+  SCSICD_Init(SCSICD_PCFX, 3, &FXsbuf[0], &FXsbuf[1], 153600 * MDFN_GetSettingUI("pcfx.cdspeed"), 21477273, KING_CDIRQ, KING_StuffSubchannels);
  }
  catch(...)
  {
@@ -2950,29 +2951,6 @@ void KING_SetLayerEnableMask(uint64 mask)
 
  RAINBOWLayerDisable = (~ms) & 0x1;
  ms >>= 1;
-
-#if 0
- if(which < 4)
- {
-  BGLayerDisable ^= 1 << which;
-  return( !((BGLayerDisable >> which) & 1));
- }
- else if(which == 4 || which == 5)
- {
-  return(fx_vdc_chips[0]->ToggleLayer(which - 4));
- }
- else if(which == 6 || which == 7)
- {
-  return(fx_vdc_chips[1]->ToggleLayer(which - 6));
- }
- else if(which == 8)
- {
-  RAINBOWLayerDisable = !RAINBOWLayerDisable;
-  return(!RAINBOWLayerDisable);
- }
- else
-  return(0);
-#endif
 }
 
 
