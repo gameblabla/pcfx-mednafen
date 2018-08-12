@@ -547,7 +547,7 @@ uint32 V810::GetRegister(unsigned int which, char *special, const uint32 special
 
 		if(special && which == GSREG_SR + PSW)
 		{
-			trio_snprintf(special, special_len, "Z: %d, S: %d, OV: %d, CY: %d, ID: %d, AE: %d, EP: %d, NP: %d, IA: %2d",
+			snprintf(special, special_len, "Z: %d, S: %d, OV: %d, CY: %d, ID: %d, AE: %d, EP: %d, NP: %d, IA: %2d",
 			(int)(bool)(val & PSW_Z), (int)(bool)(val & PSW_S), (int)(bool)(val & PSW_OV), (int)(bool)(val & PSW_CY),
 			(int)(bool)(val & PSW_ID), (int)(bool)(val & PSW_AE), (int)(bool)(val & PSW_EP), (int)(bool)(val & PSW_NP),
 			(val & PSW_IA) >> 16);
@@ -580,21 +580,13 @@ void V810::SetRegister(unsigned int which, uint32 value)
 
 uint32 V810::GetPC(void)
 {
-	if(EmuMode == V810_EMU_MODE_ACCURATE)
-		return(PC);
-	else
-		return(PC_ptr - PC_base);
+	return(PC_ptr - PC_base);
 }
 
 void V810::SetPC(uint32 new_pc)
 {
-	if(EmuMode == V810_EMU_MODE_ACCURATE)
-		PC = new_pc;
-	else
-	{
-		PC_ptr = &FastMap[new_pc >> V810_FAST_MAP_SHIFT][new_pc];
-		PC_base = PC_ptr - new_pc;
-	}
+	PC_ptr = &FastMap[new_pc >> V810_FAST_MAP_SHIFT][new_pc];
+	PC_base = PC_ptr - new_pc;
 }
 
 #define BSTR_OP_MOV dst_cache &= ~(1 << dstoff); dst_cache |= ((src_cache >> srcoff) & 1) << dstoff;
@@ -900,36 +892,7 @@ void V810::StateAction(StateMem *sm, const unsigned load, const bool data_only)
 	PODFastVector<bool> cache_data_valid_temp;
 
 	uint32 PC_tmp = GetPC();
-
-	if(EmuMode == V810_EMU_MODE_ACCURATE)
-	{
-		cache_tag_temp.resize(128);
-		cache_data_temp.resize(128 * 2);
-		cache_data_valid_temp.resize(128 * 2);
-
-		if(!load)
-		{
-			for(int i = 0; i < 128; i++)
-			{
-				cache_tag_temp[i] = Cache[i].tag;
-
-				cache_data_temp[i * 2 + 0] = Cache[i].data[0];
-				cache_data_temp[i * 2 + 1] = Cache[i].data[1];
-
-				cache_data_valid_temp[i * 2 + 0] = Cache[i].data_valid[0];
-				cache_data_valid_temp[i * 2 + 1] = Cache[i].data_valid[1];
-			}
-		}
-		else // If we're loading, go ahead and clear the cache temporaries,
-		   // in case the save state was saved while in fast mode
-		   // and the cache data isn't present and thus won't be loaded.
-		{
-			cache_tag_temp.fill(0);
-			cache_data_temp.fill(0);
-			cache_data_valid_temp.fill(false);
-		}
-	}
-
+	
 	int32 next_event_ts_delta = next_event_ts - v810_timestamp;
 
 	SFORMAT StateRegs[] =
@@ -972,18 +935,5 @@ void V810::StateAction(StateMem *sm, const unsigned load, const bool data_only)
 		RecalcIPendingCache();
 
 		SetPC(PC_tmp);
-		if(EmuMode == V810_EMU_MODE_ACCURATE)
-		{
-			for(int i = 0; i < 128; i++)
-			{
-				Cache[i].tag = cache_tag_temp[i];
-
-				Cache[i].data[0] = cache_data_temp[i * 2 + 0];
-				Cache[i].data[1] = cache_data_temp[i * 2 + 1];
-	
-				Cache[i].data_valid[0] = cache_data_valid_temp[i * 2 + 0];
-				Cache[i].data_valid[1] = cache_data_valid_temp[i * 2 + 1];
-			}
-		}
 	}
 }

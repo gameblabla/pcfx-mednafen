@@ -27,12 +27,12 @@
 template<typename T, int alpha_shift>
 static void BlitStraight(const MDFN_Surface *src_surface, const MDFN_Rect *src_rect, MDFN_Surface *dest_surface, const MDFN_Rect *dest_rect)
 {
-	const T* src_pixels = src_surface->pixels;	
-	for(int32 y = 0; y < 232; y++)
+	const T* src_pixels = src_surface->pixels16;
+	for(uint16_t y = 0; y < 232; y++)
 	{
-		memcpy(dest_surface->pixels, src_pixels, 256 * sizeof(T));
-		src_pixels += 256 * sizeof(T);
-		dest_surface->pixels += 256;
+		memcpy(dest_surface->pixels16, src_pixels, 256 * 2);
+		src_pixels += 256 * 4;
+		dest_surface->pixels16 += 256;
 	}
 }
 
@@ -45,5 +45,5 @@ void MDFN_StretchBlitSurface(const MDFN_Surface* src_surface, const MDFN_Rect& s
 	sr = src_rect;
 	o_sr = *original_src_rect;
 	dr = dest_rect;
-	BlitStraight<uint32, 31>(src_surface, &sr, dest_surface, &dr);
+	BlitStraight<uint16_t, 0>(src_surface, &sr, dest_surface, &dr);
 }

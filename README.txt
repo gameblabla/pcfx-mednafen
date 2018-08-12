@@ -1,26 +1,11 @@
 The goal is to have a portable PCFX emulator that is fast and low on resources.
 Mednafen was pretty much our only alternative and is GPLv2+ licensed so i took that.
-
 Alright, i want to strip this down as much as possible.
 
-TODO
-====
+# Remove ACCURATE paths - DONE
 
-# Add 16-bits output support
-Doesn't work properly on Mednafen sadly. Forcing it results in a crash.
-There's a lot of junk in the rendering code so we would need to greatly simplify it.
-Once that's done, i need to fix it. Should be fairly trivial to figure out hopefully.
-
-Removal/Cleanup
-==============
-
-We also need to seperate the accurate & fast versions, for speed reasons (there are a lot of conditions for switching between the 2)
-
-We need to remove the FX-SCSI stuff. Do you really need this just to run games ?
-
-Remove FPU exceptions & CPU exceptions to the full extent possible.
-
-In my experiments, removing those has no ill or un-intended effects. (Plus it would crash anyway if it would encounter those)
+# Add 16-bits output support - DONE
+This should run faster on hardware that runs faster on 16-bits surfaces.
 
 # Remove dot clock emulation mode - DONE
 
@@ -48,7 +33,18 @@ The only thread stuff that is left is cdromif.cpp, which uses a thread for CD st
 # Fix frameskipping
 It doesn't seem to work at all for PC-FX. (but it did for other consoles)
 
-# Remove exceptions and/or eventually switch to C
+# Remove C++ exceptions and/or eventually switch to C
 Mednafen extensively uses C++ exceptions so it might be difficult but it would be the first step towards a C codebase. 
 We could not care about handling exceptions and assume everything goes fine but that wouldn't be the proper way to do it.
 I guess that's the last thing i would want to work on given how spread out it is.
+
+
+Other things to do
+===================
+
+We need to remove the FX-SCSI stuff. Do you really need this just to run games ?
+
+Remove FPU exceptions & CPU exceptions to the full extent possible.
+
+In my experiments, removing those has no ill or un-intended effects. (Plus it would crash anyway if it would encounter those)
+

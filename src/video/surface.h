@@ -241,6 +241,7 @@ class MDFN_Surface //typedef struct
 
  union
  {
+	 int16 pitch16; // In pixels, not in bytes.
   int32 pitch32; // In pixels, not in bytes.
   int32 pitchinpix;	// New name, new code should use this.
  };

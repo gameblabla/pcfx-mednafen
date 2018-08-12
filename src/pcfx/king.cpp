@@ -47,7 +47,7 @@
 #include "timer.h"
 #include <trio/trio.h>
 #include <mednafen/video.h>
-#include <mednafen/sound/OwlResampler.h>
+
 
 #ifdef __MMX__
 #include <mmintrin.h>
@@ -2239,6 +2239,16 @@ static void RebuildUVLUT(const MDFN_PixelFormat &format)
  }
 }
 
+static unsigned short int rgb888Torgb565(unsigned int p1, unsigned int p2, unsigned int p3)
+{
+    unsigned int r, g, b;
+    r = p1 >> 3 << 11;
+    g = p2 >> 2 << 5;
+    b = p3 >> 3;
+    return (unsigned short int) (r | g | b);
+}
+
+
 // FIXME
 static int rs, gs, bs;
 static uint32 INLINE YUV888_TO_RGB888(uint32 yuv)
@@ -2254,7 +2264,8 @@ static uint32 INLINE YUV888_TO_RGB888(uint32 yuv)
  g = clamp_to_u8(g);
  b = clamp_to_u8(b);
 
- return((r << rs) | (g << gs) | (b << bs));
+ //return((r << rs) | (g << gs) | (b << bs));
+ return rgb888Torgb565( r, g, b );
 }
 
 static uint32 INLINE YUV888_TO_PF(const uint32 yuv, const MDFN_PixelFormat &pf, const uint8 a = 0x00)
@@ -2539,7 +2550,7 @@ static void MixVDC(void)
 
 static void MixLayers(void)
 {
- uint32 *pXBuf = surface->pixels;
+	uint16 *pXBuf = surface->pixels16;
 
     // Now we have to mix everything together... I'm scared, mommy.
     // We have, vdc_linebuffer[0] and bg_linebuffer
@@ -2589,13 +2600,13 @@ static void MixLayers(void)
      coeff_cache_v_back[x] = vce_rendercache.coefficient_mul_table_uv[(vce_rendercache.coefficients[x * 2 + 1] >> 0) & 0xF];
     }
 
-    uint32 *target;
+    uint16 *target;
     uint32 BPC_Cache = (LAYER_NONE << 28); // Backmost pixel color(cache)
 
     if(fx_vce.frame_interlaced)
-     target = pXBuf + surface->pitch32 * ((fx_vce.raster_counter - 22) * 2 + fx_vce.odd_field);
+     target = pXBuf + surface->pitch16 * ((fx_vce.raster_counter - 22) * 2 + fx_vce.odd_field);
     else
-     target = pXBuf + surface->pitch32 * (fx_vce.raster_counter - 22);
+     target = pXBuf + surface->pitch16 * (fx_vce.raster_counter - 22);
     
 
     // If at least one layer is enabled with the HuC6261, hindmost color is palette[0]

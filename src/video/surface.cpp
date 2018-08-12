@@ -40,7 +40,7 @@ MDFN_PixelFormat::MDFN_PixelFormat()
 
 MDFN_PixelFormat::MDFN_PixelFormat(const unsigned int p_colorspace, const uint8 p_rs, const uint8 p_gs, const uint8 p_bs, const uint8 p_as)
 {
- bpp = 32;
+ bpp = 16;
  colorspace = p_colorspace;
 
  Rshift = p_rs;
@@ -48,10 +48,10 @@ MDFN_PixelFormat::MDFN_PixelFormat(const unsigned int p_colorspace, const uint8 
  Bshift = p_bs;
  Ashift = p_as;
 
- Rprec = 8;
- Gprec = 8;
- Bprec = 8;
- Aprec = 8;
+ Rprec = 5;
+ Gprec = 6;
+ Bprec = 5;
+ Aprec = 0;
 }
 
 MDFN_Surface::MDFN_Surface()
@@ -73,30 +73,6 @@ MDFN_Surface::MDFN_Surface(void *const p_pixels, const uint32 p_width, const uin
  Init(p_pixels, p_width, p_height, p_pitchinpix, nf, alloc_init_pixels);
 }
 
-#if 0
-void MDFN_Surface::Resize(const uint32 p_width, const uint32 p_height, const uint32 p_pitchinpix)
-{
- void *ptr = (format.bpp == 16) ? pixels16 : pixels;
- uint64 old_asize = ((uint64)pitchinpix * (format.bpp >> 3)) * h;
- uint64 new_asize = ((uint64)p_pitchinpix * (format.bpp >> 3)) * p_height;
-
- if(!(ptr = realloc(ptr, new_asize)))
-  throw MDFN_Error(ErrnoHolder(errno));
-
- if(new_asize > old_asize)
-  memset((uint8*)ptr + old_asize, 0x00, new_asize - old_asize);
-
- if(format.bpp == 16)
-  pixels16 = (uint16*)ptr;
- else
-  pixels = (uint32*)ptr;
-
- pitchinpix = p_pitchinpix;
- w = p_width;
- h = p_height;
-}
-#endif
-
 void MDFN_Surface::Init(void *const p_pixels, const uint32 p_width, const uint32 p_height, const uint32 p_pitchinpix, const MDFN_PixelFormat &nf, const bool alloc_init_pixels)
 {
  void *rpix = NULL;
@@ -104,7 +80,7 @@ void MDFN_Surface::Init(void *const p_pixels, const uint32 p_width, const uint32
 
  format = nf;
 
- if(nf.bpp == 8)
+ /*if(nf.bpp == 8)
  {
   //assert(!nf.Rshift && !nf.Gshift && !nf.Bshift && !nf.Ashift);
   //assert(!nf.Rprec && !nf.Gprec && !nf.Bprec && !nf.Aprec);
@@ -124,6 +100,12 @@ void MDFN_Surface::Init(void *const p_pixels, const uint32 p_width, const uint32
   format.Bprec = 8;
   format.Aprec = 8;
  }
+*/
+
+  format.Rprec = 5;
+  format.Gprec = 6;
+  format.Bprec = 5;
+  format.Aprec = 0;
 
  pixels16 = NULL;
  pixels8 = NULL;
@@ -183,7 +165,7 @@ void MDFN_Surface::Init(void *const p_pixels, const uint32 p_width, const uint32
 // to boot.
 void MDFN_Surface::SetFormat(const MDFN_PixelFormat &nf, bool convert)
 {
- if(format.bpp != 32 || nf.bpp != 32)
+ /*if(format.bpp != 32 || nf.bpp != 32)
   printf("%u->%u\n",format.bpp, nf.bpp);
 
  assert(format.bpp == 8 || format.bpp == 16 || format.bpp == 32);
@@ -395,13 +377,13 @@ void MDFN_Surface::SetFormat(const MDFN_PixelFormat &nf, bool convert)
     }
    }
   }
- }
+ }*/
  format = nf;
 }
 
 void MDFN_Surface::Fill(uint8 r, uint8 g, uint8 b, uint8 a)
 {
- uint32 color = MakeColor(r, g, b, a);
+ /*uint32 color = MakeColor(r, g, b, a);
 
  if(format.bpp == 8)
  {
@@ -420,7 +402,7 @@ void MDFN_Surface::Fill(uint8 r, uint8 g, uint8 b, uint8 a)
   assert(pixels);
 
   MDFN_FastArraySet(pixels, color, pitchinpix * h);
- }
+ }*/
 }
 
 MDFN_Surface::~MDFN_Surface()

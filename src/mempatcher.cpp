@@ -105,24 +105,6 @@ static INLINE void WriteU8(uint32 addr, const uint8 val)
 }
 
 typedef MemoryPatch CHEATF;
-#if 0
-typedef struct __CHEATF
-{
-           char *name;
-           char *conditions;
-
-           uint32 addr;
-           uint64 val;
-           uint64 compare;
-
-           unsigned int length;
-           bool bigendian;
-           unsigned int icount; // Instance count
-           char type;   /* 'R' for replace, 'S' for substitute(GG), 'C' for substitute with compare */
-           int status;
-} CHEATF;
-#endif
-
 static std::vector<CHEATF> cheats;
 static bool savecheats;
 static uint32 resultsbytelen = 1;

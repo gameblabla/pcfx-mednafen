@@ -228,9 +228,6 @@ void Video_MakeSettings(std::vector <MDFNSetting> &settings)
  static const char *CSD_yscalefs = gettext_noop("Scaling factor for the Y axis in fullscreen mode.");
  static const char *CSDE_xyscalefs = gettext_noop("For this settings to have any effect, the \"<system>.stretch\" setting must be set to \"0\".");
 
- static const char *CSD_scanlines = gettext_noop("Enable scanlines with specified opacity.");
- static const char *CSDE_scanlines = gettext_noop("Opacity is specified in %; IE a value of \"100\" will give entirely black scanlines.\n\nNegative values are the same as positive values for non-interlaced video, but for interlaced video will cause the scanlines to be overlaid over the previous(if the video.deinterlacer setting is set to \"weave\", the default) field's lines.");
-
  static const char *CSD_stretch = gettext_noop("Stretch to fill screen.");
  static const char *CSD_videoip = gettext_noop("Enable (bi)linear interpolation.");
 
@@ -293,9 +290,6 @@ void Video_MakeSettings(std::vector <MDFNSetting> &settings)
   BuildSystemSetting(&setting, sysname, "xscalefs", CSD_xscalefs, CSDE_xyscalefs, MDFNST_FLOAT, strdup(default_value), "0.01", "256");
   settings.push_back(setting);
   BuildSystemSetting(&setting, sysname, "yscalefs", CSD_yscalefs, CSDE_xyscalefs, MDFNST_FLOAT, strdup(default_value), "0.01", "256");
-  settings.push_back(setting);
-
-  BuildSystemSetting(&setting, sysname, "scanlines", CSD_scanlines, CSDE_scanlines, MDFNST_INT, "0", "-100", "100");
   settings.push_back(setting);
 
   BuildSystemSetting(&setting, sysname, "stretch", CSD_stretch, NULL, MDFNST_ENUM, "aspect_mult2", NULL, NULL, NULL, NULL, StretchMode_List);
@@ -471,7 +465,7 @@ void Video_Init(MDFNGI *gi)
 	eys = _fullscreen ? _video.yscalefs : _video.yscale;
 	evideoip = _video.videoip;
 
-	desbpp = 32;
+	desbpp = 16;
 
 	if(!(screen = SDL_SetVideoMode(256, 232, desbpp, SDL_HWSURFACE)))
 	{

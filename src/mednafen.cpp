@@ -28,7 +28,6 @@
 #include	"state.h"
 #include	"movie.h"
 #include    "video.h"
-#include	"video/Deinterlacer.h"
 #include	"file.h"
 #include	"sound/WAVRecord.h"
 #include	"cdrom/cdromif.h"
@@ -52,16 +51,6 @@ static const char *CSD_enable = gettext_noop("Enable (automatic) usage of this m
 static const char *CSD_tblur = gettext_noop("Enable video temporal blur(50/50 previous/current frame by default).");
 static const char *CSD_tblur_accum = gettext_noop("Accumulate color data rather than discarding it.");
 static const char *CSD_tblur_accum_amount = gettext_noop("Blur amount in accumulation mode, specified in percentage of accumulation buffer to mix with the current frame.");
-
-
-static const MDFNSetting_EnumList Deinterlacer_List[] =
-{
- { "weave", Deinterlacer::DEINT_WEAVE, gettext_noop("Good for low-motion video; can be used in conjunction with negative <system>.scanlines setting values.") },
- { "bob", Deinterlacer::DEINT_BOB, gettext_noop("Good for causing a headache.  All glory to Bob.") },
- { "bob_offset", Deinterlacer::DEINT_BOB_OFFSET, gettext_noop("Good for high-motion video, but is a bit flickery; reduces the subjective vertical resolution.") },
-
- { NULL, 0 },
-};
 
 static const char* const fname_extra = gettext_noop("See fname_format.txt for more information.  Edit at your own risk.");
 
@@ -92,8 +81,6 @@ static const MDFNSetting MednafenSettings[] =
   { "filesys.fname_snap", MDFNSF_NOFLAGS, gettext_noop("Format string for screen snapshot filenames."), gettext_noop("WARNING: %x or %p should always be included, otherwise there will be a conflict between the numeric counter text file and the image data file.\n\nSee fname_format.txt for more information.  Edit at your own risk."), MDFNST_STRING, "%f-%p.%x" },
 
   { "filesys.state_comp_level", MDFNSF_NOFLAGS, gettext_noop("Save state file compression level."), gettext_noop("gzip/deflate compression level for save states saved to files.  -1 will disable gzip compression and wrapping entirely."), MDFNST_INT, "6", "-1", "9" },
-
-  { "video.deinterlacer", MDFNSF_CAT_VIDEO, gettext_noop("Deinterlacer to use for interlaced video."), NULL, MDFNST_ENUM, "weave", NULL, NULL, NULL, SettingChanged, Deinterlacer_List },
 
   { NULL }
 };
@@ -170,7 +157,6 @@ static double LastSoundMultiplier;
 static double last_sound_rate;
 static MDFN_PixelFormat last_pixel_format;
 static bool PrevInterlaced;
-static Deinterlacer deint;
 
 static bool FFDiscard = false; // TODO:  Setting to discard sound samples instead of increasing pitch
 
@@ -187,8 +173,6 @@ static std::vector<DriveMediaStatus> DMStatus;
 
 static void SettingChanged(const char* name)
 {
- if(!strcmp(name, "video.deinterlacer"))
-  deint.SetType(MDFN_GetSettingUI(name));
 }
 
 bool MDFNI_StartWAVRecord(const char *path, double SoundRate)
@@ -678,9 +662,7 @@ static MDFN_COLD void LoadCommonPost(const char* path)
 	MDFN_ResetMessages();   // Save state, status messages, etc.
 
 	PrevInterlaced = false;
-	deint.ClearState();
-	SettingChanged("video.deinterlacer");
-
+	
 	TBlur_Init();
 
 	LastSoundMultiplier = 1;
@@ -1538,15 +1520,6 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
  //
  //
 
- if(espec->InterlaceOn)
- {
-  if(!PrevInterlaced)
-   deint.ClearState();
-
-  deint.Process(espec->surface, espec->DisplayRect, espec->LineWidths, espec->InterlaceField);
-  PrevInterlaced = true;
- }
- else
   PrevInterlaced = false;
 
  ProcessAudio(espec);
