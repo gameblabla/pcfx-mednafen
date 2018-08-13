@@ -1,0 +1,33 @@
+
+# Remove ACCURATE paths - DONE
+
+# Add 16-bits output support - DONE
+This should run faster on hardware that runs faster on 16-bits surfaces.
+
+# Remove dot clock emulation mode - DONE
+
+# Remove Virtual Boy specific code - DONE (?)
+
+# Remove more junk that steals cycles - DONE
+We pretty much removed everything that could slow it. Now the profilter says that what's
+slowing down the emulator is the CPU core itself :(
+
+# Remove libtrio
+Why is this a thing ? It's not even maintained anymore, except by Mednafen of course...
+We need to switch to using the C library instead and remove those that we can't switch (like trio_aprintf but we need to be careful about that)
+
+# Remove tests
+They are useful for checking Mednafen and whetever it would crash or not.
+Maybe put it behind a DEBUG flag ?
+
+# Make it mono-threaded, rather than multi-threaded
+The only thread stuff that is left is cdromif.cpp, which uses a thread for CD stuff.
+This would need to be fixed for better portability against platforms without pthread.
+
+# Fix frameskipping
+It doesn't seem to work at all for PC-FX...
+
+# Remove C++ exceptions and/or eventually switch to C
+Mednafen extensively uses C++ exceptions so it might be difficult but it would be the first step towards a C codebase. 
+We could not care about handling exceptions and assume everything goes fine but that wouldn't be the proper way to do it.
+I guess that's the last thing i would want to work on given how spread out it is.
