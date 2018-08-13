@@ -151,6 +151,7 @@ __inline void memcpy_up(unsigned char *dst, const unsigned char *src, unsigned i
 #endif
 }
 
+
 __inline unsigned int fast_read_safe(void const *src, unsigned int bytes, const unsigned char *invalid)
 {
 #ifdef memory_safe 

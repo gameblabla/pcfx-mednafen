@@ -34,7 +34,6 @@
 #include	"mempatcher.h"
 #include	"compress/minilzo.h"
 #include	"tests.h"
-#include	"video/tblur.h"
 #include	<mednafen/hash/md5.h>
 #include	<mednafen/MemoryStream.h>
 #include	<mednafen/Time.h>
@@ -48,9 +47,6 @@ static void SettingChanged(const char* name);
 
 static const char *CSD_forcemono = gettext_noop("Force monophonic sound output.");
 static const char *CSD_enable = gettext_noop("Enable (automatic) usage of this module.");
-static const char *CSD_tblur = gettext_noop("Enable video temporal blur(50/50 previous/current frame by default).");
-static const char *CSD_tblur_accum = gettext_noop("Accumulate color data rather than discarding it.");
-static const char *CSD_tblur_accum_amount = gettext_noop("Blur amount in accumulation mode, specified in percentage of accumulation buffer to mix with the current frame.");
 
 static const char* const fname_extra = gettext_noop("See fname_format.txt for more information.  Edit at your own risk.");
 
@@ -245,11 +241,6 @@ void MDFNI_CloseGame(void)
    delete CDInterfaces[i];
   CDInterfaces.clear();
  }
- TBlur_Kill();
-
- #ifdef WANT_DEBUGGER
- MDFNDBG_Kill();
- #endif
 
  for(unsigned x = 0; x < 16; x++)
  {
@@ -662,8 +653,7 @@ static MDFN_COLD void LoadCommonPost(const char* path)
 	MDFN_ResetMessages();   // Save state, status messages, etc.
 
 	PrevInterlaced = false;
-	
-	TBlur_Init();
+
 
 	LastSoundMultiplier = 1;
 	last_sound_rate = -1;
@@ -1238,15 +1228,6 @@ int MDFNI_Initialize(const char *basedir, const std::vector<MDFNSetting> &Driver
 
 	 BuildDynamicSetting(&setting, sysname, "enable", MDFNSF_COMMON_TEMPLATE, CSD_enable, MDFNST_BOOL, "1");
 	 dynamic_settings.push_back(setting);
-
-	 BuildDynamicSetting(&setting, sysname, "tblur", MDFNSF_COMMON_TEMPLATE | MDFNSF_CAT_VIDEO, CSD_tblur, MDFNST_BOOL, "0");
-         dynamic_settings.push_back(setting);
-
-         BuildDynamicSetting(&setting, sysname, "tblur.accum", MDFNSF_COMMON_TEMPLATE | MDFNSF_CAT_VIDEO, CSD_tblur_accum, MDFNST_BOOL, "0");
-         dynamic_settings.push_back(setting);
-
-         BuildDynamicSetting(&setting, sysname, "tblur.accum.amount", MDFNSF_COMMON_TEMPLATE | MDFNSF_CAT_VIDEO, CSD_tblur_accum_amount, MDFNST_FLOAT, "50", "0", "100");
-	 dynamic_settings.push_back(setting);
 	}
 
 	// First merge all settable settings, then load the settings from the SETTINGS FILE OF DOOOOM
@@ -1427,9 +1408,6 @@ void MDFN_MidSync(EmulateSpecStruct *espec)
   if(MDFNGameInfo->TransformInput)	// Call after MDFND_MidSync, and before MDFNMOV_ProcessInput
    MDFNGameInfo->TransformInput();
  }
-
- // Call even during netplay, so input-recording movies recorded during netplay will play back properly.
- MDFNMOV_ProcessInput(PortData, PortDataLen, MDFNGameInfo->PortInfo.size());
 }
 
 void MDFN_MidLineUpdate(EmulateSpecStruct *espec, int y)
@@ -1439,93 +1417,54 @@ void MDFN_MidLineUpdate(EmulateSpecStruct *espec, int y)
 
 void MDFNI_Emulate(EmulateSpecStruct *espec)
 {
- multiplier_save = 1;
- volume_save = 1;
+	multiplier_save = 1;
+	volume_save = 1;
 
- espec->CustomPalette = CustomPalette;
- espec->CustomPaletteNumEntries = CustomPaletteNumEntries;
+	espec->CustomPalette = CustomPalette;
+	espec->CustomPaletteNumEntries = CustomPaletteNumEntries;
 
- // Initialize some espec member data to zero, to catch some types of bugs.
- espec->DisplayRect.x = 0;
- espec->DisplayRect.w = 0;
- espec->DisplayRect.y = 0;
- espec->DisplayRect.h = 0;
+	// Initialize some espec member data to zero, to catch some types of bugs.
+	espec->DisplayRect.x = 0;
+	espec->DisplayRect.w = 0;
+	espec->DisplayRect.y = 0;
+	espec->DisplayRect.h = 0;
 
- assert((bool)(espec->SoundBuf != NULL) == (bool)espec->SoundRate && (bool)espec->SoundRate == (bool)espec->SoundBufMaxSize);
+	espec->SoundBufSize = 0;
 
- espec->SoundBufSize = 0;
+	espec->VideoFormatChanged = false;
+	espec->SoundFormatChanged = false;
 
- espec->VideoFormatChanged = false;
- espec->SoundFormatChanged = false;
+	if(memcmp(&last_pixel_format, &espec->surface->format, sizeof(MDFN_PixelFormat)))
+	{
+		espec->VideoFormatChanged = true;
+		last_pixel_format = espec->surface->format;
+	}
 
- if(memcmp(&last_pixel_format, &espec->surface->format, sizeof(MDFN_PixelFormat)))
- {
-  espec->VideoFormatChanged = true;
+	if(espec->SoundRate != last_sound_rate)
+	{
+		espec->SoundFormatChanged = true;
+		last_sound_rate = espec->SoundRate;
+		ff_resampler.buffer_size((espec->SoundRate / 2) * 2);
+	}
 
-  last_pixel_format = espec->surface->format;
- }
+	// We want to record movies without any dropped video frames and without fast-forwarding sound distortion and without custom volume.
+	// The same goes for WAV recording(sans the dropped video frames bit :b).
+	if( wavrecorder)
+	{
+		multiplier_save = espec->soundmultiplier;
+		espec->soundmultiplier = 1;
 
- if(espec->SoundRate != last_sound_rate)
- {
-  espec->SoundFormatChanged = true;
-  last_sound_rate = espec->SoundRate;
+		volume_save = espec->SoundVolume;
+		espec->SoundVolume = 1;
+	}
 
-  ff_resampler.buffer_size((espec->SoundRate / 2) * 2);
- }
+	if(MDFNGameInfo->TransformInput)
+		MDFNGameInfo->TransformInput();
 
- // We want to record movies without any dropped video frames and without fast-forwarding sound distortion and without custom volume.
- // The same goes for WAV recording(sans the dropped video frames bit :b).
- if( wavrecorder)
- {
-  multiplier_save = espec->soundmultiplier;
-  espec->soundmultiplier = 1;
+	MDFNGameInfo->Emulate(espec);
 
-  volume_save = espec->SoundVolume;
-  espec->SoundVolume = 1;
- }
-
- if(MDFNGameInfo->TransformInput)
-  MDFNGameInfo->TransformInput();
-
- MDFNMOV_ProcessInput(PortData, PortDataLen, MDFNGameInfo->PortInfo.size());
-
- if(TBlur_IsOn())
-  espec->skip = 0;
-
-
- MDFNGameInfo->Emulate(espec);
-
- //
- // Sanity checks
- //
- if(!espec->skip)
- {
-  if(espec->DisplayRect.h == 0)
-  {
-   fprintf(stderr, "[BUG] espec->DisplayRect.h == 0\n");
-  }
- }
-
- if(!espec->MasterCycles)
- {
-  fprintf(stderr, "[BUG] espec->MasterCycles == 0\n");
- }
-
- if(espec->MasterCycles < espec->MasterCyclesALMS)
- {
-  fprintf(stderr, "[BUG] espec->MasterCycles < espec->MasterCyclesALMS\n");
- }
-
- //
- //
- //
-
-  PrevInterlaced = false;
-
- ProcessAudio(espec);
-
- if(TBlur_IsOn())
-  TBlur_Run(espec);
+	PrevInterlaced = false;
+	ProcessAudio(espec);
 }
 
 static void StateAction_RINP(StateMem* sm, const unsigned load, const bool data_only)
@@ -1536,7 +1475,7 @@ static void StateAction_RINP(StateMem* sm, const unsigned load, const bool data_
  {
   for(unsigned x = 0; x < 16; x++)
   {
-   trio_snprintf(namebuf[x], sizeof(namebuf[x]), "%02x%08x", x, PortDevice[x]);
+	trio_snprintf(namebuf[x], sizeof(namebuf[x]), "%02x%08x", x, PortDevice[x]);
   }
  }
 

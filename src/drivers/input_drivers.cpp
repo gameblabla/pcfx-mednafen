@@ -884,8 +884,8 @@ void Input_Event(const SDL_Event *event)
 */
 static void UpdatePhysicalDeviceState(void)
 {
- const bool clearify_mdr = true;
- /*int mouse_x = MouseState.x, mouse_y = MouseState.y;
+ /*const bool clearify_mdr = true;
+int mouse_x = MouseState.x, mouse_y = MouseState.y;
 
  //printf("%08x -- %08x %08x\n", MouseState.button & (MouseState.button_realstate | ~MouseState.button_prevsent), MouseState.button, MouseState.button_realstate);
 
@@ -907,7 +907,7 @@ static void UpdatePhysicalDeviceState(void)
  //
  //
  MouseState.xrel_accum = 0;
- MouseState.yrel_accum = 0;
+ MouseState.yrel_accum = 0;*/
  //
  //
  //
@@ -927,10 +927,10 @@ static void UpdatePhysicalDeviceState(void)
  }
  memcpy(keys, keys_untouched, MKK_COUNT);
 
- if(MDFNDHaveFocus || MDFN_GetSettingB("input.joystick.global_focus"))
-  joy_manager->UpdateJoysticks();
+/* if(MDFNDHaveFocus || MDFN_GetSettingB("input.joystick.global_focus"))
+  joy_manager->UpdateJoysticks();*/
 
- CurTicks = Time::MonoMS();*/
+ CurTicks = Time::MonoMS();
 }
 
 static void RedoFFSF(void)
