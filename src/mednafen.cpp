@@ -26,7 +26,6 @@
 #include	<mednafen/string/string.h>
 
 #include	"state.h"
-#include	"movie.h"
 #include    "video.h"
 #include	"file.h"
 #include	"sound/WAVRecord.h"
@@ -37,7 +36,6 @@
 #include	<mednafen/hash/md5.h>
 #include	<mednafen/MemoryStream.h>
 #include	<mednafen/Time.h>
-#include	"sound/Fir_Resampler.h"
 
 #include	"string/escape.h"
 
@@ -64,13 +62,10 @@ static const MDFNSetting MednafenSettings[] =
   { "filesys.path_sav", MDFNSF_NOFLAGS, gettext_noop("Path to directory for save games and nonvolatile memory."), gettext_noop("WARNING: Do not set this path to a directory that contains Famicom Disk System disk images, or you will corrupt them when you load an FDS game and exit Mednafen."), MDFNST_STRING, "sav" },
   { "filesys.path_savbackup", MDFNSF_NOFLAGS, gettext_noop("Path to directory for backups of save games and nonvolatile memory."), NULL, MDFNST_STRING, "b" },
   { "filesys.path_state", MDFNSF_NOFLAGS, gettext_noop("Path to directory for save states."), NULL, MDFNST_STRING, "mcs" },
-  { "filesys.path_movie", MDFNSF_NOFLAGS, gettext_noop("Path to directory for movies."), NULL, MDFNST_STRING, "mcm" },
-  { "filesys.path_cheat", MDFNSF_NOFLAGS, gettext_noop("Path to directory for cheats."), NULL, MDFNST_STRING, "cheats" },
   { "filesys.path_palette", MDFNSF_NOFLAGS, gettext_noop("Path to directory for custom palettes."), NULL, MDFNST_STRING, "palettes" },
   { "filesys.path_pgconfig", MDFNSF_NOFLAGS, gettext_noop("Path to directory for per-game configuration override files."), NULL, MDFNST_STRING, "pgconfig" },
   { "filesys.path_firmware", MDFNSF_NOFLAGS, gettext_noop("Path to directory for firmware."), NULL, MDFNST_STRING, "firmware" },
 
-  { "filesys.fname_movie", MDFNSF_NOFLAGS, gettext_noop("Format string for movie filename."), fname_extra, MDFNST_STRING, "%f.%M%p.%x" },
   { "filesys.fname_state", MDFNSF_NOFLAGS, gettext_noop("Format string for state filename."), fname_extra, MDFNST_STRING, "%f.%M%X" /*"%F.%M%p.%x"*/ },
   { "filesys.fname_sav", MDFNSF_NOFLAGS, gettext_noop("Format string for save games filename."), gettext_noop("WARNING: %x should always be included, otherwise you run the risk of overwriting save data for games that create multiple save data files.\n\nSee fname_format.txt for more information.  Edit at your own risk."), MDFNST_STRING, "%F.%M%x" },
   { "filesys.fname_savbackup", MDFNSF_NOFLAGS, gettext_noop("Format string for save game backups filename."), gettext_noop("WARNING: %x and %p should always be included.\n\nSee fname_format.txt for more information.  Edit at your own risk."), MDFNST_STRING, "%F.%m%z%p.%x" },
@@ -86,8 +81,6 @@ static const MDFNSetting RenamedSettings[] =
  { "path_snap", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , 	"filesys.path_snap"	},
  { "path_sav", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , 	"filesys.path_sav"	},
  { "path_state", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  ,	"filesys.path_state"	},
- { "path_movie", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , 	"filesys.path_movie"	},
- { "path_cheat", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , 	"filesys.path_cheat"	},
  { "path_palette", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , 	"filesys.path_palette"	},
  { "path_firmware", MDFNSF_NOFLAGS, NULL, NULL, MDFNST_ALIAS  , "filesys.path_firmware"	},
 
@@ -147,8 +140,6 @@ static uint32 PortDataLen[16];
 
 MDFNGI *MDFNGameInfo = NULL;
 
-static WAVRecord *wavrecorder = NULL;
-static Fir_Resampler<16> ff_resampler;
 static double LastSoundMultiplier;
 static double last_sound_rate;
 static MDFN_PixelFormat last_pixel_format;
@@ -171,20 +162,6 @@ static void SettingChanged(const char* name)
 {
 }
 
-bool MDFNI_StartWAVRecord(const char *path, double SoundRate)
-{
- try
- {
-  wavrecorder = new WAVRecord(path, SoundRate, MDFNGameInfo->soundchan);
- }
- catch(std::exception &e)
- {
-  MDFND_PrintError(e.what());
-  return(false);
- }
-
- return(true);
-}
 
 bool MDFNI_StartAVRecord(const char *path, double SoundRate)
 {
@@ -197,22 +174,12 @@ void MDFNI_StopAVRecord(void)
 
 void MDFNI_StopWAVRecord(void)
 {
- if(wavrecorder)
- {
-  delete wavrecorder;
-  wavrecorder = NULL;
- }
 }
 
 void MDFNI_CloseGame(void)
 {
  if(MDFNGameInfo)
  {
-
-  MDFNMOV_Stop();
-
-  if(MDFNGameInfo->GameType != GMT_PLAYER)
-   MDFN_FlushGameCheats(0);
 
   MDFNGameInfo->CloseGame();
 
@@ -549,7 +516,7 @@ static MDFN_COLD void CalcDiscsLayoutMD5(std::vector<CDIF *> *ifaces, uint8 out_
 
 static MDFN_COLD void LoadCustomPalette(void)
 {
- if(!MDFNGameInfo->CPInfo)
+ /*if(!MDFNGameInfo->CPInfo)
   return;
 
  for(auto cpi = MDFNGameInfo->CPInfo; cpi->description || cpi->name_override; cpi++)
@@ -612,7 +579,7 @@ static MDFN_COLD void LoadCustomPalette(void)
    }
   }
   break;
- }
+ }*/
 }
 
 static MDFN_COLD void LoadCommonPost(const char* path)
@@ -643,12 +610,7 @@ static MDFN_COLD void LoadCommonPost(const char* path)
 
 	MDFNI_SetLayerEnableMask(~0ULL);
 
-	#ifdef WANT_DEBUGGER
-	MDFNDBG_PostGameLoad(); 
-	#endif
-
 	MDFNSS_CheckStates();
-	MDFNMOV_CheckMovies();
 
 	MDFN_ResetMessages();   // Save state, status messages, etc.
 
@@ -1290,21 +1252,8 @@ static void ProcessAudio(EmulateSpecStruct *espec)
   const int32 SoundBufMaxSize = espec->SoundBufMaxSize - espec->SoundBufSizeALMS;
 
 
-  try
-  {
-   if(wavrecorder)
-    wavrecorder->WriteSound(SoundBuf, SoundBufSize);
-  }
-  catch(std::exception &e)
-  {
-   MDFND_PrintError(e.what());
-   delete wavrecorder;
-   wavrecorder = NULL;
-  }
-
   if(multiplier_save != LastSoundMultiplier)
   {
-   ff_resampler.time_ratio(multiplier_save, 0.9965);
    LastSoundMultiplier = multiplier_save;
   }
 
@@ -1314,43 +1263,6 @@ static void ProcessAudio(EmulateSpecStruct *espec)
    {
     if(SoundBufSize >= multiplier_save)
      SoundBufSize /= multiplier_save;
-   }
-   else
-   {
-    if(MDFNGameInfo->soundchan == 2)
-    {
-     assert(ff_resampler.max_write() >= SoundBufSize * 2);
-
-     for(int i = 0; i < SoundBufSize * 2; i++)
-      ff_resampler.buffer()[i] = SoundBuf[i];
-    }
-    else
-    {
-     assert(ff_resampler.max_write() >= SoundBufSize * 2);
-
-     for(int i = 0; i < SoundBufSize; i++)
-     {
-      ff_resampler.buffer()[i * 2] = SoundBuf[i];
-      ff_resampler.buffer()[i * 2 + 1] = 0;
-     }
-    }   
-    ff_resampler.write(SoundBufSize * 2);
-
-    int avail = ff_resampler.avail();
-    int real_read = std::min((int)(SoundBufMaxSize * MDFNGameInfo->soundchan), avail);
-
-    if(MDFNGameInfo->soundchan == 2)
-     SoundBufSize = ff_resampler.read(SoundBuf, real_read ) >> 1;
-    else
-     SoundBufSize = ff_resampler.read_mono_hack(SoundBuf, real_read );
-
-    avail -= real_read;
-
-    if(avail > 0)
-    {
-     printf("ff_resampler.avail() > espec->SoundBufMaxSize * MDFNGameInfo->soundchan - %d\n", avail);
-     ff_resampler.clear();
-    }
    }
   }
 
@@ -1444,18 +1356,6 @@ void MDFNI_Emulate(EmulateSpecStruct *espec)
 	{
 		espec->SoundFormatChanged = true;
 		last_sound_rate = espec->SoundRate;
-		ff_resampler.buffer_size((espec->SoundRate / 2) * 2);
-	}
-
-	// We want to record movies without any dropped video frames and without fast-forwarding sound distortion and without custom volume.
-	// The same goes for WAV recording(sans the dropped video frames bit :b).
-	if( wavrecorder)
-	{
-		multiplier_save = espec->soundmultiplier;
-		espec->soundmultiplier = 1;
-
-		volume_save = espec->SoundVolume;
-		espec->SoundVolume = 1;
 	}
 
 	if(MDFNGameInfo->TransformInput)
@@ -1519,9 +1419,6 @@ void MDFN_StateAction(StateMem *sm, const unsigned load, const bool data_only)
  }
 
  StateAction_RINP(sm, load, data_only);
-
- if(data_only)
-  MDFNMOV_StateAction(sm, load);
 
  MDFNGameInfo->StateAction(sm, load, data_only);
 }
@@ -1635,10 +1532,8 @@ void MDFN_DoSimpleCommand(int cmd)
 void MDFN_QSimpleCommand(int cmd)
 {
  {
-  if(!MDFNMOV_IsPlaying())
   {
    MDFN_DoSimpleCommand(cmd);
-   MDFNMOV_AddCommand(cmd);
   }
  }
 }
@@ -1749,22 +1644,8 @@ bool MDFN_UntrustedSetMedia(uint32 drive_idx, uint32 state_idx, uint32 media_idx
 
 bool MDFNI_SetMedia(uint32 drive_idx, uint32 state_idx, uint32 media_idx, uint32 orientation_idx)
 {
- assert(MDFNGameInfo);
-
- if( MDFNMOV_IsRecording())
- {
-  uint8 buf[4 * 4];
-
-  MDFN_en32lsb(&buf[0x0], drive_idx);
-  MDFN_en32lsb(&buf[0x4], state_idx);
-  MDFN_en32lsb(&buf[0x8], media_idx);
-  MDFN_en32lsb(&buf[0xC], orientation_idx);
- }
-
- if(!MDFNMOV_IsPlaying())
-  return MDFN_UntrustedSetMedia(drive_idx, state_idx, media_idx, orientation_idx);
- else
-  return false;
+	assert(MDFNGameInfo);
+	return MDFN_UntrustedSetMedia(drive_idx, state_idx, media_idx, orientation_idx);
 }
 
 void MDFNI_SetLayerEnableMask(uint64 mask)

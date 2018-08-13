@@ -13,3 +13,4 @@ log4.txt
 log5.txt
 core
 src/core
+*.opk

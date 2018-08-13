@@ -27,7 +27,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include <SDL.h>
+#include <SDL/SDL.h>
 
 static int64 Time64(void)
 {

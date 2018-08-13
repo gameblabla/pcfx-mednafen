@@ -484,17 +484,6 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
 		    }
                     break;
 
-  case MDFNMKF_CHEAT_TMP:
-  case MDFNMKF_CHEAT:
-		{
-		 std::string basepath = MDFN_GetSettingS("filesys.path_cheat");
-
-		 if(!IsAbsolutePath(basepath))
-		  basepath = BaseDirectory + PSS + basepath;
-
-		 ret = basepath + PSS + MDFNGameInfo->shortname + "." + ((type == MDFNMKF_CHEAT_TMP) ? "tmpcht" : "cht");
-		}
-		break;
 
   case MDFNMKF_AUX:
 		if(IsAbsolutePath(cd1))

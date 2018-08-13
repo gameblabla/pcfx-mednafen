@@ -24,7 +24,7 @@
 #include "Joystick.h"
 #include "Joystick_SDL.h"
 
-#include <SDL.h>
+#include <SDL/SDL.h>
 
 class Joystick_SDL : public Joystick
 {

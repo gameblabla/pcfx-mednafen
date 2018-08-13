@@ -44,25 +44,17 @@ double Sound_GetRate(void)
 
 uint32 Sound_CanWrite(void)
 {
- if(!Output)
-  return 0;
+	if(!Output)
+		return 0;
 
- return Output->CanWrite(Output);
+	return Output->CanWrite(Output);
 }
 
 void Sound_Write(int16 *Buffer, int Count)
 {
- if(!Output)
-  return;
-
- if(!Output->Write(Output, Buffer, Count))
- {
-  //
-  // TODO; We need to take assert()'s out of the wasapi and wasapish code before we can safely enable this
-  //
-  //NeedReInit = true;
-  //printf("Output->Write failure? %d\n", Count);
- }
+	if(!Output)
+		return;
+	Output->Write(Output, Buffer, Count);
 }
 
 void Sound_WriteSilence(int ms)
@@ -95,134 +87,6 @@ static std::string sampformat_to_string(const uint32 sampformat)
  return buf;
 }
 
-#if 0
-static bool RunSexyALTest(SexyAL_buffering* buffering, const char* device, int driver_type)
-{
- static const uint32 sampformats[] = 
- {
-  SEXYAL_FMT_PCMU8,
-  SEXYAL_FMT_PCMS8,
-
-  SEXYAL_FMT_PCMU16_LE,
-  SEXYAL_FMT_PCMS16_LE,
-  SEXYAL_FMT_PCMU16_BE,
-  SEXYAL_FMT_PCMS16_BE,
-
-  SEXYAL_FMT_PCMU24_LE,
-  SEXYAL_FMT_PCMS24_LE,
-  SEXYAL_FMT_PCMU24_BE,
-  SEXYAL_FMT_PCMS24_BE,
-
-  SEXYAL_FMT_PCMU32_LE,
-  SEXYAL_FMT_PCMS32_LE,
-  SEXYAL_FMT_PCMU32_BE,
-  SEXYAL_FMT_PCMS32_BE,
-
-  SEXYAL_FMT_PCMFLOAT_LE,
-  SEXYAL_FMT_PCMFLOAT_BE,
-
-  SEXYAL_FMT_PCMU18_3BYTE_LE,
-  SEXYAL_FMT_PCMS18_3BYTE_LE,
-  SEXYAL_FMT_PCMU18_3BYTE_BE,
-  SEXYAL_FMT_PCMS18_3BYTE_BE,
-
-  SEXYAL_FMT_PCMU20_3BYTE_LE,
-  SEXYAL_FMT_PCMS20_3BYTE_LE,
-  SEXYAL_FMT_PCMU20_3BYTE_BE,
-  SEXYAL_FMT_PCMS20_3BYTE_BE,
-
-  SEXYAL_FMT_PCMU24_3BYTE_LE,
-  SEXYAL_FMT_PCMS24_3BYTE_LE,
-  SEXYAL_FMT_PCMU24_3BYTE_BE,
-  SEXYAL_FMT_PCMS24_3BYTE_BE,
- };
-
- // TODO: byte order format conversion.
- // TODO: source format.
- const int rate = 48000;
- const int numframes = (rate / 2 + 1) &~ 1;
-
- for(unsigned src_channels = 1; src_channels <= 2; src_channels++)
- {
-  for(unsigned dest_channels = 1; dest_channels <= 2; dest_channels++)
-  {
-   //for(const auto src_sampformat : sampformats)
-   const uint32 src_sampformat = SEXYAL_FMT_PCMS16;
-   {
-    printf("Source Format: %s, Source Channels: %d\n", sampformat_to_string(src_sampformat).c_str(), src_channels);
-    for(const auto dest_sampformat : sampformats)
-    {
-     printf(" Dest Format: %s, Dest Channels: %d\n", sampformat_to_string(dest_sampformat).c_str(), dest_channels);
-
-     memset(&format, 0, sizeof(format));
-
-     format.sampformat = dest_sampformat;
-     format.channels = dest_channels;
-     format.rate = rate;
-
-     buffering->buffer_size = 0;
-     buffering->period_size = 0;
-     buffering->latency = 0;
-     buffering->bt_gran = 0;
-
-     if(!(Output = SexyAL_Open(device, &format, buffering, driver_type)))
-     {
-      MDFND_PrintError(_("Error opening a sound device."));
-      return false;
-     }
-
-     if(format.sampformat != dest_sampformat)
-      printf("Warning: Could not set desired device format.\n");
-
-     if(format.channels != dest_channels)
-      printf("Warning: Could not set desired device channel count.\n");
-
-     if(format.rate != rate)
-      printf("Warning: Could not set desired device rate.\n");
-
-     format.sampformat = src_sampformat;
-     format.channels = src_channels;
-     format.rate = rate;
-     format.noninterleaved = false;
-
-     Output->SetConvert(Output, &format);
-
-     if(src_sampformat == SEXYAL_FMT_PCMS16)
-     {
-      int16 samples[numframes * src_channels];
-
-      for(int i = 0; i < numframes; i++)
-      {
-       for(unsigned ch = 0; ch < src_channels; ch++)
-       {
-        samples[i * src_channels + ch] = 4095 * sin((double)i * 440 * (ch + 1) * M_PI * 2 / rate);;
-       }
-      }
-      // Write half in one go, the rest in small chunks.
-      if(!Output->Write(Output, samples, numframes / 2))
-	printf("Write count error 0\n");
-
-      for(int i = numframes / 2; i < numframes; i += 100)
-      {
-       int32 towrite = numframes - i;
- 
-       if(towrite > 100)
-        towrite = 100;
-
-       if(!Output->Write(Output, samples + i * src_channels, towrite))
-        printf("Write count error 1\n");
-      }
-     }
-     Output->Close(Output);
-     Time::SleepMS(100);
-    }
-   }
-  }
- }
-
- return true;
-}
-#endif
 
 bool Sound_Init(MDFNGI *gi)
 {
@@ -280,11 +144,6 @@ bool Sound_Init(MDFNGI *gi)
  else
   MDFNI_printf(_("Using \"%s\" audio driver with device \"%s\":"), CurDriver.name, zedevice.c_str());
  MDFN_indent(1);
-
-#if 0
- RunSexyALTest(&buffering, zedevice.c_str(), CurDriver.type);
- exit(1);
-#endif
 
  if(!(Output = SexyAL_Open(zedevice.c_str(), &format, &buffering, CurDriver.type)))
  {

@@ -11,13 +11,13 @@
 /* #undef ARCH_POWERPC_ALTIVEC */
 
 /* Define if we are compiling for 32-bit or 64-bit x86 architectures. */
-/* #define ARCH_X86 1 */
+/* #undef ARCH_X86 */
 
 /* Define if we are compiling for 32-bit x86 architectures. */
 /* #undef ARCH_X86_32 */
 
 /* Define if we are compiling for 64-bit x86 architectures. */
-/* #define ARCH_X86_64 1 */
+/* #undef ARCH_X86_64 */
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -45,22 +45,22 @@
 #define HAVE_ALLOCA_H 1
 
 /* Define if we are compiling with ALSA support. */
-/*#define HAVE_ALSA 1*/
+/* #undef HAVE_ALSA */
 
 /* Define if altivec.h is present and usable. */
 /* #undef HAVE_ALTIVEC_H */
 
 /* Define to 1 if you have the `argz_count' function. */
-#define HAVE_ARGZ_COUNT 1
+/* #undef HAVE_ARGZ_COUNT */
 
 /* Define to 1 if you have the <argz.h> header file. */
-#define HAVE_ARGZ_H 1
+/* #undef HAVE_ARGZ_H */
 
 /* Define to 1 if you have the `argz_next' function. */
-#define HAVE_ARGZ_NEXT 1
+/* #undef HAVE_ARGZ_NEXT */
 
 /* Define to 1 if you have the `argz_stringify' function. */
-#define HAVE_ARGZ_STRINGIFY 1
+/* #undef HAVE_ARGZ_STRINGIFY */
 
 /* Define to 1 if you have the `asprintf' function. */
 #define HAVE_ASPRINTF 1
@@ -90,7 +90,7 @@
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
-#define HAVE_DCGETTEXT 1
+/* #undef HAVE_DCGETTEXT */
 
 /* Define to 1 if you have the declaration of `feof_unlocked', and to 0 if you
    don't. */
@@ -203,7 +203,7 @@
 #define HAVE_GETSOCKOPT 1
 
 /* Define if the GNU gettext() function is already present or preinstalled. */
-#define HAVE_GETTEXT 1
+/* #undef HAVE_GETTEXT */
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -218,7 +218,7 @@
 #define HAVE_ICONV 1
 
 /* Define if GNU-style AVX inline assembly is supported. */
-#define HAVE_INLINEASM_AVX 1
+/* #undef HAVE_INLINEASM_AVX */
 
 /* Define if you have the 'intmax_t' type in <stdint.h> or <inttypes.h>. */
 #define HAVE_INTMAX_T 1
@@ -231,7 +231,7 @@
 #define HAVE_INTTYPES_H_WITH_UINTMAX 1
 
 /* Define if we are compiling with JACK support. */
-/*#define HAVE_JACK 1*/
+/* #undef HAVE_JACK */
 
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #define HAVE_LANGINFO_CODESET 1
@@ -240,13 +240,13 @@
 #define HAVE_LC_MESSAGES 1
 
 /* Define to 1 if you have the `asound' library (-lasound). */
-#define HAVE_LIBASOUND 1
+/* #undef HAVE_LIBASOUND */
 
 /* Define to 1 if you have the `mpcdec' library (-lmpcdec). */
 /* #undef HAVE_LIBMPCDEC */
 
 /* Define if we are compiling with libsndfile support. */
-/* #undef HAVE_LIBSNDFILE */
+/*#define HAVE_LIBSNDFILE 1*/
 
 /* Define to 1 if you have the `trio' library (-ltrio). */
 /* #undef HAVE_LIBTRIO */
@@ -318,7 +318,7 @@
 /* #undef HAVE_OPENBSD_AUDIO */
 
 /* Define if we are compiling with OSS support. */
-/*#define HAVE_OSSDSP 1*/
+#define HAVE_OSSDSP 1
 
 /* Define to 1 if you have the `pipe' function. */
 #define HAVE_PIPE 1
@@ -473,10 +473,10 @@
 #define HAVE_WINT_T 1
 
 /* Define to 1 if O_NOATIME works. */
-#define HAVE_WORKING_O_NOATIME 1
+#define HAVE_WORKING_O_NOATIME 0
 
 /* Define to 1 if O_NOFOLLOW works. */
-#define HAVE_WORKING_O_NOFOLLOW 1
+#define HAVE_WORKING_O_NOFOLLOW 0
 
 /* Define to 1 if you have the `_mkdir' function. */
 /* #undef HAVE__MKDIR */
@@ -491,7 +491,7 @@
 #define ICONV_CONST 
 
 /* Define if integer division by zero raises signal SIGFPE. */
-#define INTDIV0_RAISES_SIGFPE 1
+#define INTDIV0_RAISES_SIGFPE 0
 
 /* Define on little-endian platforms. */
 #define LSB_FIRST 1
@@ -554,7 +554,7 @@
 #define SIZEOF_INT 4
 
 /* The size of `long', as computed by sizeof. */
-#define SIZEOF_LONG 8
+#define SIZEOF_LONG 4
 
 /* The size of `long long', as computed by sizeof. */
 #define SIZEOF_LONG_LONG 8
@@ -563,16 +563,16 @@
 #define SIZEOF_OFF_T 8
 
 /* The size of `ptrdiff_t', as computed by sizeof. */
-#define SIZEOF_PTRDIFF_T 8
+#define SIZEOF_PTRDIFF_T 4
 
 /* The size of `short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
 
 /* The size of `size_t', as computed by sizeof. */
-#define SIZEOF_SIZE_T 8
+#define SIZEOF_SIZE_T 4
 
 /* The size of `void *', as computed by sizeof. */
-#define SIZEOF_VOID_P 8
+#define SIZEOF_VOID_P 4
 
 /* The size of `__int64', as computed by sizeof. */
 #define SIZEOF___INT64 0
@@ -644,65 +644,65 @@
 #define VERSION "0.9.48"
 
 /* Define if we are compiling with debugger. */
-/* #undef WANT_DEBUGGER */
+/*#define WANT_DEBUGGER 1*/
 
 /* Define if we are compiling with with fancy CPU-intensive software video
    scalers. */
-/* #undef WANT_FANCY_SCALERS */
+/*#define WANT_FANCY_SCALERS 1*/
 
 /* Define if we are compiling with GBA emulation. */
-/* #undef WANT_GBA_EMU */
+/*#define WANT_GBA_EMU 1*/
 
 /* Define if we are compiling with GB emulation. */
-/* #undef WANT_GB_EMU */
+/*#define WANT_GB_EMU 1*/
 
 /* Define if we are compiling with internal CJK fonts. */
-/* #undef WANT_INTERNAL_CJK */
+/*#define WANT_INTERNAL_CJK 1*/
 
 /* Define if we are compiling with Lynx emulation. */
-/* #undef WANT_LYNX_EMU */
+/*#define WANT_LYNX_EMU 1*/
 
 /* Define if we are compiling with Sega Genesis/MegaDrive emulation. */
-/* #undef WANT_MD_EMU */
+/*#define WANT_MD_EMU 1*/
 
 /* Define if we are compiling with NES emulation. */
-/* #undef WANT_NES_EMU */
+/*#define WANT_NES_EMU 1*/
 
 /* Define if we are compiling with NGP emulation. */
-/* #define WANT_NGP_EMU 1 */
+/*#define WANT_NGP_EMU 1*/
 
 /* Define if we are compiling with PCE emulation. */
-/* #undef WANT_PCE_EMU */
+/*#define WANT_PCE_EMU 1*/
 
 /* Define if we are compiling with separate fast PCE emulation. */
-/* #undef WANT_PCE_FAST_EMU */
+/*#define WANT_PCE_FAST_EMU 1*/
 
 /* Define if we are compiling with PC-FX emulation. */
 #define WANT_PCFX_EMU 1
 
 /* Define if we are compiling with PlayStation emulation. */
-/* #undef WANT_PSX_EMU */
+/*#define WANT_PSX_EMU 1*/
 
 /* Define if we are compiling with SMS+GG emulation. */
-/* #undef WANT_SMS_EMU */
+/*#define WANT_SMS_EMU 1*/
 
 /* Define if we are compiling with SNES emulation. */
-/* #undef WANT_SNES_EMU */
+/*#define WANT_SNES_EMU 1*/
 
 /* Define if we are compiling with experimental fast SNES emulation. */
-/* #undef WANT_SNES_FAUST_EMU */
+/*#define WANT_SNES_FAUST_EMU 1*/
 
 /* Define if we are compiling with SSF playback support. */
-/* #undef WANT_SSFPLAY_EMU */
+/*#define WANT_SSFPLAY_EMU 1*/
 
 /* Define if we are compiling with Sega Saturn emulation. */
 /* #undef WANT_SS_EMU */
 
 /* Define if we are compiling with Virtual Boy emulation. */
-/* #undef WANT_VB_EMU */
+/*#define WANT_VB_EMU 1*/
 
 /* Define if we are compiling with WonderSwan emulation. */
-/* #undef WANT_WSWAN_EMU */
+/*#define WANT_WSWAN_EMU 1*/
 
 /* Define if we are compiling for Win32. */
 /* #undef WIN32 */

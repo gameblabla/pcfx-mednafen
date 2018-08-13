@@ -21,7 +21,9 @@
 /* kludge.  yay. */
 SexyAL_enumdevice *SexyALI_OSS_EnumerateDevices(void);
 SexyAL_enumdevice *SexyALI_OpenBSD_EnumerateDevices(void);
+#if HAVE_OSSDSP
 SexyAL_device *SexyALI_OSS_Open(const char *id, SexyAL_format *format, SexyAL_buffering *buffering);
+#endif
 SexyAL_device *SexyALI_JACK_Open(const char *id, SexyAL_format *format, SexyAL_buffering *buffering);
 SexyAL_device *SexyALI_SDL_Open(const char *id, SexyAL_format *format, SexyAL_buffering *buffering);
 SexyAL_device *SexyALI_DSound_Open(const char *id, SexyAL_format *format, SexyAL_buffering *buffering);

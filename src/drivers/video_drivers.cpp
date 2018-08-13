@@ -29,15 +29,9 @@
 
 #include "icon.h"
 
-#include "debugger.h"
 #include "fps.h"
 #include "video-state.h"
 
-#ifdef WANT_FANCY_SCALERS
-#include "scalebit.h"
-#include "hqxx-common.h"
-#include "2xSaI.h"
-#endif
 
 class SDL_to_MDFN_Surface_Wrapper : public MDFN_Surface
 {
@@ -180,19 +174,6 @@ static const MDFNSetting_EnumList Special_List[] =
 {
     { "0", 	NTVB_NONE },
     { "none", 	NTVB_NONE, "None/Disabled" },
-
-#ifdef WANT_FANCY_SCALERS
-    { "hq2x", 	NTVB_HQ2X, "hq2x" },
-    { "hq3x", 	NTVB_HQ3X, "hq3x" },
-    { "hq4x", 	NTVB_HQ4X, "hq4x" },
-    { "scale2x",NTVB_SCALE2X, "scale2x" },
-    { "scale3x",NTVB_SCALE3X, "scale3x" },
-    { "scale4x",NTVB_SCALE4X, "scale4x" },
-
-    { "2xsai", 	NTVB_2XSAI, "2xSaI" },
-    { "super2xsai", NTVB_SUPER2XSAI, "Super 2xSaI" },
-    { "supereagle", NTVB_SUPEREAGLE, "Super Eagle" },
-#endif
 
     { "nn2x",	NTVB_NN2X, "Nearest-neighbor 2x" },
     { "nn3x",	NTVB_NN3X, "Nearest-neighbor 3x" },

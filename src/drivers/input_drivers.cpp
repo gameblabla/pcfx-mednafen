@@ -27,7 +27,6 @@
 #include "video.h"
 #include "Joystick.h"
 #include "fps.h"
-#include "debugger.h"
 #include "rmdui.h"
 
 extern JoystickManager *joy_manager;
@@ -671,7 +670,7 @@ static const COKE CKeys[_CK_COUNT]	=
 
 	{ MK_CK(F10), "reset", false, 0, gettext_noop("Reset") },
 	{ MK_CK(F11), "power", false, 0, gettext_noop("Power toggle") },
-	{ MK_CK2(F12, ESCAPE), "exit", true, 0, gettext_noop("Exit") },
+	{ MK_CK(END), "exit", true, 0, gettext_noop("Exit") },
 	{ MK_CK(BACKSPACE), "state_rewind", false, 1, gettext_noop("Rewind") },
 	{ MK_CK_ALT(o), "rotate_screen", false, 1, gettext_noop("Rotate screen") },
 
@@ -979,32 +978,10 @@ static uint8 BarcodeWorldData[1 + 13];
 static void DoKeyStateZeroing(void)
 {
  EmuKeyboardKeysGrabbed = false;
- NPCheatDebugKeysGrabbed = false;
 
  if(IConfig == none)
  {
-  if(Debugger_IsActive())
-  {
-   memset(keys, 0, sizeof(keys));
-   NPCheatDebugKeysGrabbed = true;
-
-   keys[SDLK_F1] = keys_untouched[SDLK_F1];
-   keys[SDLK_F2] = keys_untouched[SDLK_F2];
-   keys[SDLK_F3] = keys_untouched[SDLK_F3];
-   keys[SDLK_F4] = keys_untouched[SDLK_F4];
-   keys[SDLK_F5] = keys_untouched[SDLK_F5];
-   keys[SDLK_F6] = keys_untouched[SDLK_F6];
-   keys[SDLK_F7] = keys_untouched[SDLK_F7];
-   keys[SDLK_F8] = keys_untouched[SDLK_F8];
-   keys[SDLK_F9] = keys_untouched[SDLK_F9];
-   keys[SDLK_F10] = keys_untouched[SDLK_F10];
-   keys[SDLK_F11] = keys_untouched[SDLK_F11];
-   keys[SDLK_F12] = keys_untouched[SDLK_F12];
-   keys[SDLK_F13] = keys_untouched[SDLK_F13];
-   keys[SDLK_F14] = keys_untouched[SDLK_F14];
-   keys[SDLK_F15] = keys_untouched[SDLK_F15];
-  }
-  else if(InputGrab)
+  if(InputGrab)
   {
    for(unsigned int x = 0; x < CurGame->PortInfo.size(); x++)
    {
@@ -1136,8 +1113,7 @@ static void CheckCommandKeys(void)
 
   if(!CurGame)
 	return;
-  
-  if(!Debugger_IsActive()) // We don't want to start button configuration when the debugger is active!
+
   {
    for(unsigned i = 0; i < 12; i++)
    {
@@ -1247,20 +1223,11 @@ static void CheckCommandKeys(void)
   if(CK_Check(CK_SAVE_STATE))
 	pending_save_state = 1;
 
-  if(CK_Check(CK_SAVE_MOVIE))
-	pending_save_movie = 1;
-
   if(CK_Check(CK_LOAD_STATE))
   {
 	MDFNI_LoadState(NULL, NULL);
-	Debugger_GT_SyncDisToPC();
   }
 
-  if(CK_Check(CK_LOAD_MOVIE))
-  {
-	MDFNI_LoadMovie(NULL);
-	Debugger_GT_SyncDisToPC();
-  }
 
   if(CK_Check(CK_TL1))
     ToggleLayer(0);
@@ -1294,13 +1261,11 @@ static void CheckCommandKeys(void)
   if(CK_Check(CK_RESET))
   {
 	MDFNI_Reset();
-	Debugger_GT_ForceStepIfStepping();
   }
 
   if(CK_Check(CK_POWER))
   {
 	MDFNI_Power();
-	Debugger_GT_ForceStepIfStepping();
   }
 
   if(CurGame->GameType == GMT_ARCADE)
@@ -1376,9 +1341,6 @@ static void CheckCommandKeys(void)
     {
      if(CK_Check((CommandKey)(CK_0 + i)))
       MDFNI_SelectState(i);
-
-     if(CK_Check((CommandKey)(CK_M0 + i)))
-      MDFNI_SelectMovie(i);
     }
    }
    #undef SSM

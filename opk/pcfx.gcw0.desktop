@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PCFX emulator
+Comment=Based on Mednafen
+Exec=./mednafen_gcw0.elf %f
+Icon=icon
+Terminal=false
+Categories=emulators;
+X-OD-NeedsDownscaling=false
+MimeType=application/x-cue;text/file;

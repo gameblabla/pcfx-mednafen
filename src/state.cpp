@@ -28,7 +28,6 @@
 #include "driver.h"
 #include "general.h"
 #include "state.h"
-#include "movie.h"
 #include "video.h"
 #include "video/resize.h"
 
@@ -709,8 +708,6 @@ void MDFNI_SelectState(int w) noexcept
   return; 
  }
 
- MDFNI_SelectMovie(-1);
-
  try
  {
   if(w == 666 + 1)
@@ -823,9 +820,6 @@ bool MDFNI_LoadState(const char *fname, const char *suffix) noexcept
 
    MDFNSS_LoadSM(&sm, false);
   }
-
-  if(MDFNMOV_IsRecording())
-   MDFNMOV_RecordState();
 
   MDFND_SetStateStatus(NULL);
 
