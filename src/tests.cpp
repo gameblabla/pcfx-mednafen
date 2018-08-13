@@ -1396,100 +1396,6 @@ static void TestLog2(void)
  }
 }
 
-static void TestRoundPow2(void)
-{
- static const struct
- {
-  uint64 val;
-  uint64 expected;
- } rup2_test_vals[] =
- {
-  { 0, 1 },
-  { 1, 1 },
-  { 2, 2 },
-  { 3, 4 },
-  { 4, 4 },
-  { 5, 8 },
-  { 7, 8 },
-  { 8, 8 },
-  {      0x7FFF,         0x8000 },
-  {      0x8000,         0x8000 },
-  {      0x8001,        0x10000 },
-  {     0x10000,        0x10000 },
-  {     0x10001,        0x20000 },
-  {  0x7FFFFFFF,     0x80000000 },
-  {  0x80000000,     0x80000000 },
-  {  0x80000001,    0x100000000ULL },
-  { 0x100000000ULL, 0x100000000ULL },
-  { 0x100000001ULL, 0x200000000ULL },
-  { 0xFFFFFFFFFFFFFFFFULL, 0 },
- };
-
- for(auto const& tv : rup2_test_vals)
- {
-  if((uint32)tv.val == tv.val)
-  {
-   assert(round_up_pow2((uint32)tv.val) == (uint64)tv.expected);
-   assert(round_up_pow2((int32)tv.val) == (uint64)tv.expected);
-  }
-
-  assert(round_up_pow2((uint64)tv.val) == (uint64)tv.expected);
-  assert(round_up_pow2((int64)tv.val) == (uint64)tv.expected);
- }
-
- for(unsigned i = 1; i < 64; i++)
- {
-  if(i < 32)
-  {
-   assert(round_up_pow2((uint32)(((uint64)1 << i) + 0)) ==  ((uint64)1 << i));
-   assert(round_up_pow2((uint32)(((uint64)1 << i) + 1)) == (((uint64)1 << i) << 1));
-  }
-  assert(round_up_pow2(((uint64)1 << i) + 0) ==  ((uint64)1 << i));
-  assert(round_up_pow2(((uint64)1 << i) + 1) == (((uint64)1 << i) << 1));
- }
-
- assert(round_nearest_pow2((uint16)0xC000, false) ==  0x00008000U);
- assert(round_nearest_pow2( (int16)0x6000, false) ==  0x00004000U);
- assert(round_nearest_pow2( (int16)0x6000,  true) ==  0x00008000U);
- assert(round_nearest_pow2((uint16)0xC000) 	  ==  0x00010000U);
- assert(round_nearest_pow2( (int16)0xC000) 	  == 0x100000000ULL);
-
- for(int i = 0; i < 64; i++)
- {
-  assert( round_nearest_pow2(((uint64)1 << i)                          + 0) == (((uint64)1 << i) << 0) );
-  if(i > 0)
-  {
-   assert( round_nearest_pow2(((uint64)1 << i) + ((uint64)1 << (i - 1))    ) == (((uint64)1 << i) << 1) );
-   assert( round_nearest_pow2(((uint64)1 << i) + ((uint64)1 << (i - 1)) - 1) == (((uint64)1 << i) << 0) );
-  }
-
-  assert( round_nearest_pow2(((uint64)1 << i)                          + 0, false) == (((uint64)1 << i) << 0) );
-  if(i > 0)
-  {
-   assert( round_nearest_pow2(((uint64)1 << i) + ((uint64)1 << (i - 1)) + 1, false) == (((uint64)1 << i) << 1) );
-   assert( round_nearest_pow2(((uint64)1 << i) + ((uint64)1 << (i - 1)) + 0, false) == (((uint64)1 << i) << 0) );
-   assert( round_nearest_pow2(((uint64)1 << i) + ((uint64)1 << (i - 1)) - 1, false) == (((uint64)1 << i) << 0) );
-  }
-
-  {
-   float tmp = i ? floor((1.0 / 2) + (float)i / (1U << MDFN_log2(i))) * (1U << MDFN_log2(i)) : 1.0;
-   //printf("%d, %d %d -- %f\n", i, round_nearest_pow2(i, true), round_nearest_pow2(i, false), tmp);
-   assert(tmp == round_nearest_pow2(i));
-  }
- }
-
- #if 0
- {
-  uint64 lcg = 7;
-  uint64 accum = 0;
-
-  for(unsigned i = 0; i < 256; i++, lcg = (lcg * 6364136223846793005ULL) + 1442695040888963407ULL)
-   accum += round_up_pow2(lcg) * 1 + round_up_pow2((uint32)lcg) * 3 + round_up_pow2((uint16)lcg) * 5 + round_up_pow2((uint8)lcg) * 7;
-
-  assert(accum == 0xb40001fbdb46577cULL);
- }
- #endif
-}
 
 template<typename RT, typename T, unsigned sa>
 static NO_INLINE NO_CLONE RT TestCasts_Sub_L(T v)
@@ -2006,8 +1912,6 @@ bool MDFN_RunMathTests(void)
  DoLEPackerTest();
 
  TestLog2();
-
- TestRoundPow2();
 
  RunFPTests();
 

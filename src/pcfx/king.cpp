@@ -2239,33 +2239,23 @@ static void RebuildUVLUT(const MDFN_PixelFormat &format)
  }
 }
 
-static unsigned short int rgb888Torgb565(unsigned int p1, unsigned int p2, unsigned int p3)
-{
-    unsigned int r, g, b;
-    r = p1 >> 3 << 11;
-    g = p2 >> 2 << 5;
-    b = p3 >> 3;
-    return (unsigned short int) (r | g | b);
-}
-
-
 // FIXME
-static int rs, gs, bs;
+//static int rs, gs, bs;
 static uint32 INLINE YUV888_TO_RGB888(uint32 yuv)
 {
- int32 r, g, b;
- uint8 y = yuv >> 16;
+	int32 r, g, b;
+	uint8 y = yuv >> 16;
 
- r = y + UVLUT[yuv & 0xFFFF][0];
- g = y + UVLUT[yuv & 0xFFFF][1];
- b = y + UVLUT[yuv & 0xFFFF][2];
+	r = y + UVLUT[yuv & 0xFFFF][0];
+	g = y + UVLUT[yuv & 0xFFFF][1];
+	b = y + UVLUT[yuv & 0xFFFF][2];
 
- r = clamp_to_u8(r);
- g = clamp_to_u8(g);
- b = clamp_to_u8(b);
+	r = clamp_to_u8(r);
+	g = clamp_to_u8(g);
+	b = clamp_to_u8(b);
 
- //return((r << rs) | (g << gs) | (b << bs));
- return rgb888Torgb565( r, g, b );
+	//return((r << rs) | (g << gs) | (b << bs));
+	return((r >> 3 << 11) | (g >> 2 << 5) | (b >> 3));
 }
 
 static uint32 INLINE YUV888_TO_PF(const uint32 yuv, const MDFN_PixelFormat &pf, const uint8 a = 0x00)
@@ -2940,9 +2930,9 @@ static void MDFN_FASTCALL KING_RunGfx(int32 clocks)
 
 void KING_SetPixelFormat(const MDFN_PixelFormat &format) 
 {
- rs = format.Rshift;
+ /*rs = format.Rshift;
  gs = format.Gshift;
- bs = format.Bshift;
+ bs = format.Bshift;*/
  RebuildUVLUT(format);
 }
 

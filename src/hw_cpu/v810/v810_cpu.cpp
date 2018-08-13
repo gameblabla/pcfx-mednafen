@@ -44,9 +44,6 @@ found freely through public domain sources.
 #include <mednafen/mednafen.h>
 #include <trio/trio.h>
 
-//#include "pcfx.h"
-//#include "debug.h"
-
 #include <string.h>
 #include <errno.h>
 
@@ -114,151 +111,12 @@ INLINE void V810::RecalcIPendingCache(void)
 // and try to restore cache from an interrupt acknowledge register or dump it to a register
 // controlling interrupt masks...  I wanna be sadistic~
 
-void V810::CacheClear(v810_timestamp_t &timestamp, uint32 start, uint32 count)
-{
-	//printf("Cache clear: %08x %08x\n", start, count);
-	for(uint32 i = 0; i < count && (i + start) < 128; i++)
-		memset(&Cache[i + start], 0, sizeof(V810_CacheEntry_t));
-}
-
-INLINE void V810::CacheOpMemStore(v810_timestamp_t &timestamp, uint32 A, uint32 V)
-{
-	if(MemWriteBus32[A >> 24])
-	{
-		timestamp += 2;
-		MemWrite32(timestamp, A, V);
-	}
-	else
-	{
-		timestamp += 2;
-		MemWrite16(timestamp, A, V & 0xFFFF);
-
-		timestamp += 2;
-		MemWrite16(timestamp, A | 2, V >> 16);
-	}
-}
-
-INLINE uint32 V810::CacheOpMemLoad(v810_timestamp_t &timestamp, uint32 A)
-{
-	if(MemReadBus32[A >> 24])
-	{
-		timestamp += 2;
-		return(MemRead32(timestamp, A));
-	}
-	else
-	{
-		uint32 ret;
-
-		timestamp += 2;
-		ret = MemRead16(timestamp, A);
-
-		timestamp += 2;
-		ret |= MemRead16(timestamp, A | 2) << 16;
-		return(ret);
-	}
-}
-
-void V810::CacheDump(v810_timestamp_t &timestamp, const uint32 SA)
-{
-	printf("Cache dump: %08x\n", SA);
-
-	for(int i = 0; i < 128; i++)
-	{
-		CacheOpMemStore(timestamp, SA + i * 8 + 0, Cache[i].data[0]);
-		CacheOpMemStore(timestamp, SA + i * 8 + 4, Cache[i].data[1]);
-	}
-
-	for(int i = 0; i < 128; i++)
-	{
-		uint32 icht = Cache[i].tag | ((int)Cache[i].data_valid[0] << 22) | ((int)Cache[i].data_valid[1] << 23);
-
-		CacheOpMemStore(timestamp, SA + 1024 + i * 4, icht);
-	}
-
-}
-
-void V810::CacheRestore(v810_timestamp_t &timestamp, const uint32 SA)
-{
-	printf("Cache restore: %08x\n", SA);
-
-	for(int i = 0; i < 128; i++)
-	{
-		Cache[i].data[0] = CacheOpMemLoad(timestamp, SA + i * 8 + 0);
-		Cache[i].data[1] = CacheOpMemLoad(timestamp, SA + i * 8 + 4);
-	}
-
-	for(int i = 0; i < 128; i++)
-	{
-		uint32 icht;
-
-		icht = CacheOpMemLoad(timestamp, SA + 1024 + i * 4);
-
-		Cache[i].tag = icht & ((1 << 22) - 1);
-		Cache[i].data_valid[0] = (icht >> 22) & 1;
-		Cache[i].data_valid[1] = (icht >> 23) & 1;
-	}
-}
-
-
-INLINE uint32 V810::RDCACHE(v810_timestamp_t &timestamp, uint32 addr)
-{
-	const int CI = (addr >> 3) & 0x7F;
-	const int SBI = (addr & 4) >> 2;
-
-	if(Cache[CI].tag == (addr >> 10))
-	{
-		if(!Cache[CI].data_valid[SBI])
-		{
-			timestamp += 2;       // or higher?  Penalty for cache miss seems to be higher than having cache disabled.
-			if(MemReadBus32[addr >> 24])
-				Cache[CI].data[SBI] = MemRead32(timestamp, addr & ~0x3);
-			else
-			{
-				timestamp++;
-				uint32 tmp;
-				tmp = MemRead16(timestamp, addr & ~0x3);
-				tmp |= MemRead16(timestamp, (addr & ~0x3) | 0x2) << 16;
-				Cache[CI].data[SBI] = tmp;
-			}
-			Cache[CI].data_valid[SBI] = true;
-		}
-	}
-	else
-	{
-		Cache[CI].tag = addr >> 10;
-
-		timestamp += 2;	// or higher?  Penalty for cache miss seems to be higher than having cache disabled.
-		if(MemReadBus32[addr >> 24])
-			Cache[CI].data[SBI] = MemRead32(timestamp, addr & ~0x3);
-		else
-		{
-			timestamp++;
-			uint32 tmp;
-			tmp = MemRead16(timestamp, addr & ~0x3);
-			tmp |= MemRead16(timestamp, (addr & ~0x3) | 0x2) << 16;
-
-			Cache[CI].data[SBI] = tmp;
-		}
-		Cache[CI].data_valid[SBI] = true;
-		Cache[CI].data_valid[SBI ^ 1] = false;
-	}
-	return(Cache[CI].data[SBI]);
-}
-
 INLINE uint16 V810::RDOP(v810_timestamp_t &timestamp, uint32 addr, uint32 meow)
 {
 	uint16 ret;
 
-	if(S_REG[CHCW] & 0x2)
-	{
-		uint32 d32 = RDCACHE(timestamp, addr);
-		ret = d32 >> ((addr & 2) * 8);
-	}
-	else
-	{
-		timestamp += meow; //++;
-		ret = MemRead16(timestamp, addr);
-	}
+	timestamp += meow; //++;
+	ret = MemRead16(timestamp, addr);
 	return(ret);
 }
 
@@ -299,21 +157,18 @@ bool V810::Init(V810_Emu_Mode mode)
 	in_bstr = false;
 	in_bstr_to = 0;
 
-	if(mode == V810_EMU_MODE_FAST)
+	memset(DummyRegion, 0, V810_FAST_MAP_PSIZE);
+
+	for(unsigned int i = V810_FAST_MAP_PSIZE; i < V810_FAST_MAP_PSIZE + V810_FAST_MAP_TRAMPOLINE_SIZE; i += 2)
 	{
-		memset(DummyRegion, 0, V810_FAST_MAP_PSIZE);
-
-		for(unsigned int i = V810_FAST_MAP_PSIZE; i < V810_FAST_MAP_PSIZE + V810_FAST_MAP_TRAMPOLINE_SIZE; i += 2)
-		{
-			DummyRegion[i + 0] = 0;
-			DummyRegion[i + 1] = 0x36 << 2;
-		}
-
-		for(uint64 A = 0; A < (1ULL << 32); A += V810_FAST_MAP_PSIZE)
-			FastMap[A / V810_FAST_MAP_PSIZE] = DummyRegion - A;
+		DummyRegion[i + 0] = 0;
+		DummyRegion[i + 1] = 0x36 << 2;
 	}
 
- return(true);
+	for(uint64 A = 0; A < (1ULL << 32); A += V810_FAST_MAP_PSIZE)
+		FastMap[A / V810_FAST_MAP_PSIZE] = DummyRegion - A;
+
+	return(true);
 }
 
 void V810::Kill(void)
@@ -438,33 +293,10 @@ INLINE void V810::SetSREG(v810_timestamp_t &timestamp, unsigned int which, uint3
 
 		case ADDTRE:
 			S_REG[ADDTRE] = value & 0xFFFFFFFE;
-			printf("Address trap(unemulated): %08x\n", value);
 		break;
 
 		case CHCW:
 			S_REG[CHCW] = value & 0x2;
-
-			switch(value & 0x31)
-			{
-				default: 
-					printf("Undefined cache control bit combination: %08x\n", value);       
-				break;
-
-				case 0x00:
-				break;
-
-				case 0x01:
-					CacheClear(timestamp, (value >> 20) & 0xFFF, (value >> 8) & 0xFFF);
-				break;
-
-				case 0x10: 
-					CacheDump(timestamp, value & ~0xFF);
-				break;
-
-				case 0x20:
-					CacheRestore(timestamp, value & ~0xFF);
-				break;
-			}
 		break;
 	}
 }
@@ -502,9 +334,15 @@ INLINE uint32 V810::GetSREG(unsigned int which)
 //
 // Define fast mode defines
 //
-#define RB_GETPC()      	((uint32)(PC_ptr - PC_base))
 
-#define RB_RDOP(PC_offset, ...) MDFN_de16lsb<true>(&PC_ptr[PC_offset])
+/* Little Endian only obviously */
+static INLINE uint16 LoadU16_LE(const uint16 *a)
+{
+	return *a;
+}
+
+#define RB_GETPC()      	((uint32)(PC_ptr - PC_base))
+#define RB_RDOP(PC_offset, ...) LoadU16_LE((uint16 *)&PC_ptr[PC_offset])
 
 void V810::Run_Fast(int32 MDFN_FASTCALL (*event_handler)(const v810_timestamp_t timestamp))
 {
@@ -779,110 +617,11 @@ bool V810::bstr_subop(v810_timestamp_t &timestamp, int sub_op, int arg1)
 	return(false);
 }
 
-INLINE void V810::SetFPUOPNonFPUFlags(uint32 result)
-{
-		// Now, handle flag setting
-		SetFlag(PSW_OV, 0);
-		if(!(result & 0x7FFFFFFF)) // Check to see if exponent and mantissa are 0
-		{
-			 // If Z flag is set, S and CY should be clear, even if it's negative 0(confirmed on real thing with subf.s, at least).
-			SetFlag(PSW_Z, 1);
-			SetFlag(PSW_S, 0);
-			SetFlag(PSW_CY, 0);
-		}
-		else
-		{
-			SetFlag(PSW_Z, 0);
-			SetFlag(PSW_S, result & 0x80000000);
-			SetFlag(PSW_CY, result & 0x80000000);
-		}
-}
-
 bool V810::IsSubnormal(uint32 fpval)
 {
 	if( ((fpval >> 23) & 0xFF) == 0 && (fpval & ((1 << 23) - 1)) )
 		return(true);
 	return(false);
-}
-
-INLINE void V810::FPU_Math_Template(uint32 (V810_FP_Ops::*func)(uint32, uint32), uint32 arg1, uint32 arg2)
-{
-	uint32 result;
-
-	fpo.clear_flags();
-	result = (fpo.*func)(P_REG[arg1], P_REG[arg2]);
-
-	SetFPUOPNonFPUFlags(result);
-	SetPREG(arg1, result);
-}
-
-void V810::fpu_subop(v810_timestamp_t &timestamp, int sub_op, int arg1, int arg2)
-{
-	uint32 result;
-	
-	switch(sub_op) 
-	{
-		case CVT_WS: 
-			timestamp += 5;
-
-			fpo.clear_flags();
-			result = fpo.itof(P_REG[arg2]);
-
-			SetPREG(arg1, result);
-			SetFPUOPNonFPUFlags(result);
-		break;	// End CVT.WS
-
-		case CVT_SW:
-			timestamp += 8;
-
-			fpo.clear_flags();
-			result = fpo.ftoi(P_REG[arg2], false);
-
-			SetPREG(arg1, result);
-			SetFlag(PSW_OV, 0);
-			SetSZ(result);
-		break;	// End CVT.SW
-
-		case ADDF_S: 
-			timestamp += 8;
-		     FPU_Math_Template(&V810_FP_Ops::add, arg1, arg2);
-		break;
-
-		case SUBF_S: 
-			timestamp += 11;
-		     FPU_Math_Template(&V810_FP_Ops::sub, arg1, arg2);
-		break;
-
-        case CMPF_S: 
-			timestamp += 6;
-			// Don't handle this like subf.s because the flags
-			// have slightly different semantics(mostly regarding underflow/subnormal results) (confirmed on real V810).
-			fpo.clear_flags();
-			result = fpo.cmp(P_REG[arg1], P_REG[arg2]);
-		    SetFPUOPNonFPUFlags(result);
-		break;
-
-		case MULF_S: 
-			timestamp += 7;
-			FPU_Math_Template(&V810_FP_Ops::mul, arg1, arg2);
-		break;
-
-		case DIVF_S:
-			timestamp += 43;
-			FPU_Math_Template(&V810_FP_Ops::div, arg1, arg2);
-		break;
-
-		case TRNC_SW:
-			timestamp += 7;
-			
-			fpo.clear_flags();
-			result = fpo.ftoi(P_REG[arg2], true);
-
-			SetPREG(arg1, result);
-			SetFlag(PSW_OV, 0);
-			SetSZ(result);
-		break;	// end TRNC.SW
-	}
 }
 
 void V810::StateAction(StateMem *sm, const unsigned load, const bool data_only)
