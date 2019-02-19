@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <trio/trio.h>
+
 
 #include "compress/unzip.h"
 
@@ -61,7 +61,9 @@ void MDFNFILE::ApplyIPS(Stream *ips)
  // If the stream is not a MemoryStream, turn it into one.
  //
  //if(!(str->attributes() & Stream::ATTRIBUTE_WRITEABLE))
- if(dynamic_cast<MemoryStream*>(str.get()) == nullptr)
+ 
+ //if(dynamic_cast<MemoryStream*>(str.get()) == nullptr)
+ if(!(str->attributes() & Stream::ATTRIBUTE_WRITEABLE))
  {
   str.reset(new MemoryStream(str.release(), MaxROMImageSize));
  }  

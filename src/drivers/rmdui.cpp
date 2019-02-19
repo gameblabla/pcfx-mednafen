@@ -22,7 +22,7 @@
 #include "main.h"
 #include "rmdui.h"
 
-#include <trio/trio.h>
+
 
 static bool DiskEjected;
 static unsigned DiskSelected;
@@ -64,7 +64,7 @@ void RMDUI_Init(MDFNGI* gi, const int which_medium)
 
    if(!rs->MediaPresent || !rs->MediaUsable)
    {
-    trio_snprintf(textbuf, sizeof(textbuf), "%s: %s", rd->Name.c_str(), rs->Name.c_str());
+    snprintf(textbuf, sizeof(textbuf), "%s: %s", rd->Name.c_str(), rs->Name.c_str());
 
     if(rs->MediaCanChange && !deo_set)
     {
@@ -81,9 +81,9 @@ void RMDUI_Init(MDFNGI* gi, const int which_medium)
      for(unsigned o = 0; o < rmd->Media[m].Orientations.size() || o == 0; o++)
      {
       if(rmd->Media[m].Orientations.size())
-       trio_snprintf(textbuf, sizeof(textbuf), "%s: %s (%s, %s)", rd->Name.c_str(), rs->Name.c_str(), rmd->Media[m].Name.c_str(), rmd->Media[m].Orientations[o].c_str());
+       snprintf(textbuf, sizeof(textbuf), "%s: %s (%s, %s)", rd->Name.c_str(), rs->Name.c_str(), rmd->Media[m].Name.c_str(), rmd->Media[m].Orientations[o].c_str());
       else
-       trio_snprintf(textbuf, sizeof(textbuf), "%s: %s (%s)", rd->Name.c_str(), rs->Name.c_str(), rmd->Media[m].Name.c_str());
+       snprintf(textbuf, sizeof(textbuf), "%s: %s (%s)", rd->Name.c_str(), rs->Name.c_str(), rmd->Media[m].Name.c_str());
 
       PUOptions.push_back(DiskSelectType({textbuf, d, s, m, o}));
      }

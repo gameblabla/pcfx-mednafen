@@ -22,7 +22,7 @@
 #include <mednafen/types.h>
 #include "Stream.h"
 
-#include <trio/trio.h>
+
 
 Stream::Stream()
 {
@@ -189,7 +189,7 @@ void Stream::print_format(const char *format, ...)
 
  va_start(ap, format);
 
- rc = trio_vasprintf(&str, format, ap);
+ rc = vasprintf(&str, format, ap);
 
  va_end(ap);
 

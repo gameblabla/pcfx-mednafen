@@ -26,7 +26,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <trio/trio.h>
+
 #include <locale.h>
 
 #ifdef HAVE_GETPWUID
@@ -163,11 +163,11 @@ void BuildSystemSetting(MDFNSetting *setting, const char *system_name, const cha
 
  memset(setting, 0, sizeof(MDFNSetting));
 
- trio_snprintf(setting_name, 256, "%s.%s", system_name, name);
+ snprintf(setting_name, 256, "%s.%s", system_name, name);
 
  setting->name = strdup(setting_name);
  setting->flags = MDFNSF_COMMON_TEMPLATE;
- setting->description = description;
+ setting->description = (char*)description;
  setting->description_extra = description_extra;
  setting->type = type;
  setting->default_value = default_value;

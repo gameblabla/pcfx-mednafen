@@ -18,7 +18,7 @@
 #include "main.h"
 
 #include <ctype.h>
-#include <trio/trio.h>
+
 #include <map>
 
 #include "input.h"
@@ -71,7 +71,7 @@ static std::string BCToString(const ButtConfig &bc)
 
  if(bc.ButtType == BUTTC_KEYBOARD)
  {
-  trio_snprintf(tmp, 256, "keyboard %d", bc.ButtonNum & 0xFFFF);
+  snprintf(tmp, 256, "keyboard %d", bc.ButtonNum & 0xFFFF);
 
   string = string + std::string(tmp);
 
@@ -84,13 +84,13 @@ static std::string BCToString(const ButtConfig &bc)
  }
  else if(bc.ButtType == BUTTC_JOYSTICK)
  {
-  trio_snprintf(tmp, 256, "joystick %016llx %08x", (unsigned long long)bc.DeviceID, bc.ButtonNum);
+  snprintf(tmp, 256, "joystick %016llx %08x", (unsigned long long)bc.DeviceID, bc.ButtonNum);
 
   string = string + std::string(tmp);
  }
  else if(bc.ButtType == BUTTC_MOUSE)
  {
-  trio_snprintf(tmp, 256, "mouse %016llx %08x", (unsigned long long)bc.DeviceID, bc.ButtonNum);
+  snprintf(tmp, 256, "mouse %016llx %08x", (unsigned long long)bc.DeviceID, bc.ButtonNum);
 
   string = string + std::string(tmp);
  }
@@ -149,7 +149,7 @@ static bool StringToBC(const char *string, std::vector<ButtConfig> &bc)
 
  do
  {
-  if(trio_sscanf(string, "%63s %255[^~]", device_name, extra) == 2)
+  if(sscanf(string, "%63s %255[^~]", device_name, extra) == 2)
   {
    if(!strcasecmp(device_name, "keyboard"))
    {
@@ -176,7 +176,7 @@ static bool StringToBC(const char *string, std::vector<ButtConfig> &bc)
     tmp_bc.ButtonNum = 0;
     tmp_bc.DeviceID = 0;
 
-    trio_sscanf(extra, "%016llx %08x", &tmp_bc.DeviceID, &tmp_bc.ButtonNum);
+    sscanf(extra, "%016llx %08x", &tmp_bc.DeviceID, &tmp_bc.ButtonNum);
 
     tmp_bc.DeviceNum = joy_manager->GetIndexByUniqueID(tmp_bc.DeviceID);
     bc.push_back(tmp_bc);
@@ -188,8 +188,8 @@ static bool StringToBC(const char *string, std::vector<ButtConfig> &bc)
     tmp_bc.ButtonNum = 0;
     tmp_bc.DeviceID = 0;
   
-    if(trio_sscanf(extra, "%016llx %08x", &tmp_bc.DeviceID, &tmp_bc.ButtonNum) < 2)
-     trio_sscanf(extra, "%d", &tmp_bc.ButtonNum);
+    if(sscanf(extra, "%016llx %08x", &tmp_bc.DeviceID, &tmp_bc.ButtonNum) < 2)
+     sscanf(extra, "%d", &tmp_bc.ButtonNum);
 
     bc.push_back(tmp_bc);
    }
@@ -306,7 +306,7 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
    else
    {
     char tmp_setting_name[512];
-    trio_snprintf(tmp_setting_name, 512, "%s.input.%s", gi->shortname, gi->PortInfo[port].ShortName);
+    snprintf(tmp_setting_name, 512, "%s.input.%s", gi->shortname, gi->PortInfo[port].ShortName);
     port_device_name = strdup(MDFN_GetSettingS(tmp_setting_name).c_str());
    }
   }
@@ -344,7 +344,7 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
    {
     char tmpsn[512];
 
-    trio_snprintf(tmpsn, sizeof(tmpsn), "%s.input.%s.%s.axis_scale", gi->shortname, gi->PortInfo[port].ShortName, zedevice->ShortName);
+    snprintf(tmpsn, sizeof(tmpsn), "%s.input.%s.%s.axis_scale", gi->shortname, gi->PortInfo[port].ShortName, zedevice->ShortName);
     PIDC[port].AxisScale = MDFN_GetSettingF(tmpsn);
     analog_axis_scale_grabbed = true;
    }
@@ -358,7 +358,9 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
      ButtonInfoCache bic;
 
      bic.IDII = &idii;
-     bic.SettingName = trio_aprintf("%s.input.%s.%s.%s%s", gi->shortname, gi->PortInfo[port].ShortName, zedevice->ShortName, (r ? "rapid_" : ""), idii.SettingName);
+     bic.SettingName = new char[64];
+     sprintf(bic.SettingName, "%s.input.%s.%s.%s%s", gi->shortname, gi->PortInfo[port].ShortName, zedevice->ShortName, (r ? "rapid_" : ""), idii.SettingName);
+      
      CleanSettingName(bic.SettingName);
      bic.BCANDMode = StringToBC(MDFN_GetSettingS(bic.SettingName).c_str(), bic.BC);
      bic.BitOffset = idii.BitOffset;
@@ -377,8 +379,8 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
 
      bic.Type = ((idii.Type == IDIT_BUTTON_CAN_RAPID) ? IDIT_BUTTON : idii.Type);
      bic.Flags = idii.Flags;
-
-     bic.CPName = trio_aprintf(_("%s%s%s"), (r ? _("Rapid ") : ""), idii.Name, (bic.Type == IDIT_SWITCH) ? _(" Select") : "");
+     bic.CPName = new char[64];
+     sprintf(bic.CPName, _("%s%s%s"), (r ? _("Rapid ") : ""), idii.Name, (bic.Type == IDIT_SWITCH) ? _(" Select") : "");
 
      bic.BCPrettyPrio = idii.ConfigOrder;
      PIDC[port].BIC.push_back(bic);
@@ -466,7 +468,7 @@ static void BuildPortInfo(MDFNGI *gi, const unsigned int port)
   if(bic.Type == IDIT_SWITCH)
   {
    char tmpsn[512];
-   trio_snprintf(tmpsn, sizeof(tmpsn), "%s.defpos", bic.SettingName);
+   snprintf(tmpsn, sizeof(tmpsn), "%s.defpos", bic.SettingName);
    bic.SwitchLastPos = MDFN_GetSettingUI(tmpsn);
    BitsIntract(PIDC[port].Data, bic.BitOffset, bic.SwitchBitSize, bic.SwitchLastPos);
   }
@@ -490,7 +492,7 @@ static void IncSelectedDevice(unsigned int port)
   if(CurGame->DesiredInput.size() > port)
    CurGame->DesiredInput[port] = NULL;
 
-  trio_snprintf(tmp_setting_name, 512, "%s.input.%s", CurGame->shortname, CurGame->PortInfo[port].ShortName);
+  snprintf(tmp_setting_name, 512, "%s.input.%s", CurGame->shortname, CurGame->PortInfo[port].ShortName);
 
   PIDC[port].CurrentDeviceIndex = (PIDC[port].CurrentDeviceIndex + 1) % CurGame->PortInfo[port].DeviceInfo.size();
 
@@ -697,7 +699,7 @@ static const COKE CKeys[_CK_COUNT]	=
         { MK_CK_CTRL_SHIFT(KP2), "device_select12", false, 1, gettext_noop("Select virtual device on virtual input port 12") },
 };
 
-static const char *CKeysSettingName[_CK_COUNT];
+static char *CKeysSettingName[_CK_COUNT];
 
 struct CKeyConfig
 {
@@ -1654,9 +1656,9 @@ int ConfigDevice(int arg)
 
   // For Lynx, GB, GBA, NGP, WonderSwan(especially wonderswan!)
   if(CurGame->PortInfo.size() == 1 && CurGame->PortInfo[0].DeviceInfo.size() == 1)
-   trio_snprintf(buf, 512, "%s", PIDC[arg].BIC[snooty].CPName);
+   snprintf(buf, 512, "%s", PIDC[arg].BIC[snooty].CPName);
   else
-   trio_snprintf(buf, 512, "%s %d: %s", PIDC[arg].Device->FullName, arg + 1, PIDC[arg].BIC[snooty].CPName);
+   snprintf(buf, 512, "%s %d: %s", PIDC[arg].Device->FullName, arg + 1, PIDC[arg].BIC[snooty].CPName);
 
   if(cd_x != cd_lx)
   {
@@ -1689,7 +1691,7 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
  const ButtConfig *def_bc = NULL;
  char setting_def_search[512];
 
- trio_snprintf(setting_def_search, 512, "%s.input.%s.%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName);
+ snprintf(setting_def_search, 512, "%s.input.%s.%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName);
  CleanSettingName(setting_def_search);
 
  {
@@ -1728,11 +1730,15 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
 
   memset(&tmp_setting, 0, sizeof(tmp_setting));
 
-  PendingGarbage.push_back((void *)(tmp_setting.name = CleanSettingName(trio_aprintf("%s.input.%s.%s.%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName)) ));
-  PendingGarbage.push_back((void *)(tmp_setting.description = trio_aprintf("%s, %s, %s: %s", system->shortname, system->PortInfo[w].FullName, info->FullName, info->IDII[x].Name) ));
+  tmp_setting.name = new char[128];
+  tmp_setting.description = new char[128];
+  snprintf(tmp_setting.name, 128, "%s.input.%s.%s.%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName);
+  snprintf(tmp_setting.description, 128, "%s, %s, %s: %s", system->shortname, system->PortInfo[w].FullName, info->FullName, info->IDII[x].Name);
+  
   tmp_setting.type = MDFNST_STRING;
   tmp_setting.default_value = default_value;
   
+  printf("tmp_setting.name %s\n", tmp_setting.name);
   tmp_setting.flags = MDFNSF_SUPPRESS_DOC | MDFNSF_CAT_INPUT_MAPPING;
   tmp_setting.description_extra = NULL;
 
@@ -1744,9 +1750,10 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
   if(info->IDII[x].Type == IDIT_BUTTON_CAN_RAPID)
   {
    memset(&tmp_setting, 0, sizeof(tmp_setting));
-
-   PendingGarbage.push_back((void *)( tmp_setting.name = CleanSettingName(trio_aprintf("%s.input.%s.%s.rapid_%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName)) ));
-   PendingGarbage.push_back((void *)( tmp_setting.description = trio_aprintf("%s, %s, %s: Rapid %s", system->shortname, system->PortInfo[w].FullName, info->FullName, info->IDII[x].Name) ));
+	tmp_setting.name = new char[128];
+	tmp_setting.description = new char[128];
+	snprintf(tmp_setting.name, 128, "%s.input.%s.%s.rapid_%s", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName);
+	snprintf(tmp_setting.description, 128, "%s, %s, %s: Rapid %s", system->shortname, system->PortInfo[w].FullName, info->FullName, info->IDII[x].Name);
    tmp_setting.type = MDFNST_STRING;
 
    tmp_setting.default_value = "";
@@ -1761,9 +1768,10 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
    if((info->IDII[x].Flags & IDIT_BUTTON_ANALOG_FLAG_SQLR) && !analog_scale_made)
    {
     memset(&tmp_setting, 0, sizeof(tmp_setting));
-
-    PendingGarbage.push_back((void *)( tmp_setting.name = CleanSettingName(trio_aprintf("%s.input.%s.%s.axis_scale", system->shortname, system->PortInfo[w].ShortName, info->ShortName)) ));
-    PendingGarbage.push_back((void *)( tmp_setting.description = trio_aprintf(gettext_noop("Analog axis scale coefficient for %s on %s."), info->FullName, system->PortInfo[w].FullName) ));
+	tmp_setting.name = new char[128];
+	tmp_setting.description = new char[128];
+	snprintf(tmp_setting.name, 128, "%s.input.%s.%s.axis_scale", system->shortname, system->PortInfo[w].ShortName, info->ShortName);
+	snprintf(tmp_setting.description, 128, gettext_noop("Analog axis scale coefficient for %s on %s."), info->FullName, system->PortInfo[w].FullName);
     tmp_setting.description_extra = NULL;
 
     tmp_setting.type = MDFNST_FLOAT;
@@ -1778,10 +1786,11 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
   else if(info->IDII[x].Type == IDIT_SWITCH)
   {
    memset(&tmp_setting, 0, sizeof(tmp_setting));
-
-   PendingGarbage.push_back((void *)( tmp_setting.name = CleanSettingName(trio_aprintf("%s.input.%s.%s.%s.defpos", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName)) ));
-   PendingGarbage.push_back((void *)( tmp_setting.description = trio_aprintf(gettext_noop("Default position for switch \"%s\"."), info->IDII[x].Name) ));
-   tmp_setting.description_extra = gettext_noop("Sets the position for the switch to the value specified upon startup and virtual input device change.");
+	tmp_setting.name = new char[128];
+	tmp_setting.description = new char[128];
+	snprintf(tmp_setting.name, 128, "%s.input.%s.%s.%s.defpos", system->shortname, system->PortInfo[w].ShortName, info->ShortName, info->IDII[x].SettingName);
+	snprintf(tmp_setting.description, 128, gettext_noop("Default position for switch \"%s\"."), info->IDII[x].Name);
+	tmp_setting.description_extra = gettext_noop("Sets the position for the switch to the value specified upon startup and virtual input device change.");
 
    tmp_setting.flags = (info->IDII[x].Flags & IDIT_FLAG_AUX_SETTINGS_UNDOC) ? MDFNSF_SUPPRESS_DOC : 0;
    {
@@ -1793,7 +1802,7 @@ static void MakeSettingsForDevice(std::vector <MDFNSetting> &settings, const MDF
      el[i].string = info->IDII[x].Switch.Pos[i].SettingName;
      el[i].number = i;
      el[i].description = info->IDII[x].Switch.Pos[i].Name;
-     el[i].description_extra = info->IDII[x].Switch.Pos[i].Description;
+     el[i].description_extra = (char*)info->IDII[x].Switch.Pos[i].Description;
     }
     el[snp].string = NULL;
     el[snp].number = 0;
@@ -1835,10 +1844,11 @@ static void MakeSettingsForPort(std::vector <MDFNSetting> &settings, const MDFNG
    EnumList[device].description_extra = NULL;
    if(info->DeviceInfo[device].Description || (info->DeviceInfo[device].Flags & InputDeviceInfoStruct::FLAG_KEYBOARD))
    {
-    EnumList[device].description_extra = trio_aprintf("%s%s%s",
+	tmp_setting.description = new char[128];
+	snprintf(EnumList[device].description_extra, 128, "%s%s%s",
 	info->DeviceInfo[device].Description ? info->DeviceInfo[device].Description : "",
 	(info->DeviceInfo[device].Description && (info->DeviceInfo[device].Flags & InputDeviceInfoStruct::FLAG_KEYBOARD)) ? "\n" : "",
-	(info->DeviceInfo[device].Flags & InputDeviceInfoStruct::FLAG_KEYBOARD) ? _("Emulated keyboard key state is not updated unless input grabbing(by default, mapped to CTRL+SHIFT+Menu) is toggled on; refer to the main documentation for details.") : "");
+	(info->DeviceInfo[device].Flags & InputDeviceInfoStruct::FLAG_KEYBOARD) ? _("Emulated keyboard key state is not updated unless input grabbing(by default, mapped to CTRL+SHIFT+Menu) is toggled on; refer to the main documentation for details.") : ""); 
    }
 
    PendingGarbage.push_back((void *)EnumList[device].string);
@@ -1846,11 +1856,13 @@ static void MakeSettingsForPort(std::vector <MDFNSetting> &settings, const MDFNG
   }
 
   PendingGarbage.push_back(EnumList);
-
-  tmp_setting.name = trio_aprintf("%s.input.%s", system->shortname, info->ShortName);
+  
+	tmp_setting.name = new char[128];
+	snprintf(tmp_setting.name, 128, "%s.input.%s", system->shortname, info->ShortName);
   PendingGarbage.push_back((void *)tmp_setting.name);
 
-  tmp_setting.description = trio_aprintf("Input device for %s", info->FullName);
+	tmp_setting.description = new char[128];
+	snprintf(tmp_setting.description, 128, "Input device for %s", info->FullName);
   PendingGarbage.push_back((void *)tmp_setting.description);
 
   tmp_setting.type = MDFNST_ENUM;
@@ -1896,11 +1908,14 @@ void MakeInputSettings(std::vector <MDFNSetting> &settings)
 
   memset(&tmp_setting, 0, sizeof(MDFNSetting));
 
-  CKeysSettingName[x] = trio_aprintf("command.%s", CKeys[x].text);
-  tmp_setting.name = CKeysSettingName[x];
+  CKeysSettingName[x] = new char[64];
+  tmp_setting.name = new char[64];
+  
+  snprintf(CKeysSettingName[x], 64, "command.%s", CKeys[x].text);
+  tmp_setting.name = (char*)CKeysSettingName[x];
   PendingGarbage.push_back((void *)( CKeysSettingName[x] ));
 
-  tmp_setting.description = CKeys[x].description;
+  tmp_setting.description = (char*)CKeys[x].description;
   tmp_setting.type = MDFNST_STRING;
 
   tmp_setting.flags = MDFNSF_SUPPRESS_DOC | MDFNSF_CAT_INPUT_MAPPING;

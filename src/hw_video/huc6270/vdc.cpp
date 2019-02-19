@@ -21,7 +21,7 @@
 #include <mednafen/video.h>
 #include <mednafen/lepacker.h>
 
-#include <trio/trio.h>
+
 #include <math.h>
 #include "vdc.h"
 

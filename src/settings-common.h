@@ -74,18 +74,18 @@ struct MDFNSetting_EnumList
 	const char *string;
 	int number;
 	const char *description;	// Short
-	const char *description_extra;	// Extra verbose text appended to the short description.
+	char *description_extra;	// Extra verbose text appended to the short description.
 };
 
 struct MDFNSetting
 {
-        const char *name;
+	char *name;
 	uint32 flags;
-        const char *description; // Short
+	char *description; // Short
 	const char *description_extra;
 
-        MDFNSettingType type;
-        const char *default_value;
+	MDFNSettingType type;
+	const char *default_value;
 	const char *minimum;
 	const char *maximum;
 	bool (*validate_func)(const char *name, const char *value);

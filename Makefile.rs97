@@ -13,14 +13,15 @@ DEFINES    += -DLOCALEDIR=\"/usr/local/share/locale\" -D_GNU_SOURCE=1 -D_REENTRA
 
 CC_OPTS		= -O2 -DHAVE_COMPUTED_GOTO $(F_OPTS) $(DEFINES)
 CC_OPTS    += -fsigned-char -fno-fast-math -fno-unsafe-math-optimizations -fno-aggressive-loop-optimizations -fno-ipa-icf 
-CC_OPTS    += -fno-printf-return-value -fstrict-aliasing -fomit-frame-pointer -fdata-sections -ffunction-sections -mips32 -mno-abicalls -mno-shared
+CC_OPTS    += -fno-printf-return-value -fstrict-aliasing -fomit-frame-pointer -fdata-sections -ffunction-sections
 CC_OPTS    += -Wall -Wshadow -Wempty-body -Wignored-qualifiers -Wvla -Wvariadic-macros -Wdisabled-optimization
-CC_OPTS    += -fno-pic -fno-pie -fno-PIC -fno-PIE -no-pie -fwrapv -fjump-tables -fexceptions -fno-stack-protector
-
+CC_OPTS    += -fwrapv -fjump-tables -fexceptions -fno-stack-protector
+CC_OPTS	   += -fno-PIC -fno-PIE -mno-abicalls
+#CC_OPTS    += -fprofile-generate=/mnt/int_sd/profile
 
 CFLAGS		= $(CC_OPTS) -std=gnu99
-CXXFLAGS	= $(CC_OPTS) -std=gnu++11
-LDFLAGS     = -lSDL -lm -lz -lstdc++ -pthread -Wl,--as-needed -Wl,--gc-sections -flto -lSDL -s
+CXXFLAGS	= $(CC_OPTS) -std=gnu++11 -fno-rtti -fno-math-errno -fno-threadsafe-statics
+LDFLAGS     = -lSDL -lm -lz -lstdc++ -pthread -Wl,--as-needed -Wl,--gc-sections -no-pie -flto -lSDL -s
 
 # Files to be compiled
 SRCDIR    = src src/video src/cputest src/trio src/string src/demo src/resampler src/hash src/compress src/drivers 

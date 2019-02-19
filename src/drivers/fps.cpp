@@ -17,7 +17,7 @@
 
 #include "main.h"
 #include "video.h"
-#include <trio/trio.h>
+
 
 static struct
 {
@@ -134,19 +134,19 @@ static void CalcFramerates(char *virtfps, char *drawnfps, char *blitfps, size_t 
  double vf = cur_vfps, df = cur_dfps, bf = cur_bfps;
 
  if(vf != 0)
-  trio_snprintf(virtfps, maxlen, "%f", vf);
+  snprintf(virtfps, maxlen, "%f", vf);
  else
-  trio_snprintf(virtfps, maxlen, "?");
+  snprintf(virtfps, maxlen, "?");
 
  if(df != 0)
-  trio_snprintf(drawnfps, maxlen, "%f", df);
+  snprintf(drawnfps, maxlen, "%f", df);
  else
-  trio_snprintf(drawnfps, maxlen, "?");
+  snprintf(drawnfps, maxlen, "?");
 
  if(bf != 0)
-  trio_snprintf(blitfps, maxlen, "%f", bf);
+  snprintf(blitfps, maxlen, "%f", bf);
  else
-  trio_snprintf(blitfps, maxlen, "?");
+  snprintf(blitfps, maxlen, "?");
 }
 
 void FPS_Draw(MDFN_Surface *target, const int xpos, const int ypos)

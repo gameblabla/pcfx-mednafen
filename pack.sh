@@ -1,1 +1,1 @@
-mksquashfs ./opk pcfx.opk -all-root -noappend -no-exports -no-xattrs
+mksquashfs ./opk smallpcfx.opk -all-root -noappend -no-exports -no-xattrs

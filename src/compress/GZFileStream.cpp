@@ -22,7 +22,7 @@
 #include <mednafen/mednafen.h>
 #include "GZFileStream.h"
 
-#include <trio/trio.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -43,9 +43,9 @@ GZFileStream::GZFileStream(const std::string& path, const MODE mode, const int l
   char tmp[16];
 
   if(level >= 0)
-   trio_snprintf(tmp, sizeof(tmp), "wb%u", level);
+   snprintf(tmp, sizeof(tmp), "wb%u", level);
   else
-   trio_snprintf(tmp, sizeof(tmp), "wbT");
+   snprintf(tmp, sizeof(tmp), "wbT");
 
   gzp = gzopen(path.c_str(), tmp);
  }

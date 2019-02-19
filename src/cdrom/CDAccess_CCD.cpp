@@ -24,7 +24,7 @@
 #include <mednafen/string/string.h>
 
 #include "CDAccess_CCD.h"
-#include <trio/trio.h>
+
 
 #include <map>
 
@@ -202,7 +202,7 @@ void CDAccess_CCD::Load(const std::string& path, bool image_memcache)
   for(unsigned te = 0; te < toc_entries; te++)
   {
    char tmpbuf[64];
-   trio_snprintf(tmpbuf, sizeof(tmpbuf), "ENTRY %u", te);
+   snprintf(tmpbuf, sizeof(tmpbuf), "ENTRY %u", te);
    CCD_Section& ts = Sections[std::string(tmpbuf)];
    unsigned session = CCD_ReadInt<unsigned>(ts, "SESSION");
    uint8 point = CCD_ReadInt<uint8>(ts, "POINT");

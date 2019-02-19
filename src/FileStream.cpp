@@ -27,7 +27,7 @@
 #include "FileStream.h"
 #include <mednafen/mednafen.h>
 
-#include <trio/trio.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

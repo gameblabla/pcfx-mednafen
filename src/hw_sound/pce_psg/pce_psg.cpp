@@ -20,7 +20,7 @@
 
 #include <math.h>
 #include <string.h>
-#include <trio/trio.h>
+
 
 void PCE_PSG::SetVolume(double new_volume)
 {

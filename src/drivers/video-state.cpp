@@ -20,7 +20,7 @@
 #include "main.h"
 #include "video.h"
 #include <string.h>
-#include <trio/trio.h>
+
 
 static MDFN_Surface *PreviewSurface = NULL, *TextSurface = NULL;
 static MDFN_Rect PreviewRect, TextRect;
@@ -147,11 +147,11 @@ void DrawSaveStates(SDL_Surface *screen, double exs, double eys, int rs, int gs,
     char text[256];
 
     if(StateStatus->current_movie > 0)
-     trio_snprintf(text, 256, _("-recording movie %d-"), StateStatus->current_movie-1);
+     snprintf(text, 256, _("-recording movie %d-"), StateStatus->current_movie-1);
     else if (StateStatus->current_movie < 0)
-     trio_snprintf(text, 256, _("-playing movie %d-"),-1 - StateStatus->current_movie);
+     snprintf(text, 256, _("-playing movie %d-"),-1 - StateStatus->current_movie);
     else
-     trio_snprintf(text, 256, _("-select movie-"));
+     snprintf(text, 256, _("-select movie-"));
  
     DrawStateMovieRow(TextSurface, StateStatus->status, StateStatus->current, StateStatus->recently_saved, text);
    }

@@ -18,7 +18,7 @@
 #include <mednafen/mednafen.h>
 #include <mednafen/general.h>
 #include <sys/types.h>
-#include <trio/trio.h>
+
 #include "cdromif.h"
 #include "CDAccess.h"
 

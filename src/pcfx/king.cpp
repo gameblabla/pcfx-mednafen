@@ -45,7 +45,7 @@
 #include "soundbox.h"
 #include "input.h"
 #include "timer.h"
-#include <trio/trio.h>
+
 #include <mednafen/video.h>
 
 

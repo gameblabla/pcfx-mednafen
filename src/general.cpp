@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #include <map>
-#include <trio/trio.h>
+
 
 #include "general.h"
 #include "state.h"
@@ -416,13 +416,13 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
 			fmap['p'] = "C";
 		       else
 		       {
-                        trio_snprintf(numtmp, sizeof(numtmp), "%u", id1);
+                        snprintf(numtmp, sizeof(numtmp), "%u", id1);
                         fmap['p'] = std::string(numtmp);
 		       }
 	              }
 		      else if(type != MDFNMKF_SAV && !cd1)
 		      {
-                       trio_snprintf(numtmp, sizeof(numtmp), "%d", id1);
+                       snprintf(numtmp, sizeof(numtmp), "%d", id1);
                        fmap['p'] = std::string(numtmp);
 	              }
 
@@ -460,7 +460,7 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
 		     std::string fstring = MDFN_GetSettingS("filesys.fname_snap");
 		     std::string fpath;
 
-		     trio_snprintf(numtmp, sizeof(numtmp), "%04u", id1);
+		     snprintf(numtmp, sizeof(numtmp), "%04u", id1);
 
 		     fmap['p'] = std::string(numtmp);
 

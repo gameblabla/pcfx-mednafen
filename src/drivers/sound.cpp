@@ -16,7 +16,7 @@
  */
 
 #include "main.h"
-#include <trio/trio.h>
+
 
 #include "sound.h"
 
@@ -78,7 +78,7 @@ static std::string sampformat_to_string(const uint32 sampformat)
   case SEXYAL_ENC_PCM_FLOAT: enc_str = _("floating-point"); break;
  }
 
- trio_snprintf(buf, sizeof(buf), _("%u bits(%s, %u bytes%s)"),
+ snprintf(buf, sizeof(buf), _("%u bits(%s, %u bytes%s)"),
 	SAMPFORMAT_BITS(sampformat),
 	enc_str,
 	SAMPFORMAT_BYTES(sampformat),

@@ -21,7 +21,7 @@
 
 #include "mednafen.h"
 #include "error.h"
-#include <trio/trio.h>
+
 
 MDFN_Error::MDFN_Error() noexcept
 {
@@ -31,10 +31,9 @@ MDFN_Error::MDFN_Error() noexcept
 MDFN_Error::MDFN_Error(int errno_code_new, const char *format, ...) noexcept
 {
  errno_code = errno_code_new;
-
  va_list ap;
  va_start(ap, format);
- error_message = trio_vaprintf(format, ap);
+ vasprintf(&error_message, format, ap);
  va_end(ap);
 }
 
@@ -42,8 +41,8 @@ MDFN_Error::MDFN_Error(int errno_code_new, const char *format, ...) noexcept
 MDFN_Error::MDFN_Error(const ErrnoHolder &enh)
 {
  errno_code = enh.Errno();
-
- error_message = trio_aprintf("%s", enh.StrError());
+ error_message = new char[128];
+ snprintf(error_message, 128, "%s", enh.StrError());
 }
 
 

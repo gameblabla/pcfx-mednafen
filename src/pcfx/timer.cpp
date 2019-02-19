@@ -27,7 +27,7 @@
 #include "pcfx.h"
 #include "interrupt.h"
 #include "timer.h"
-#include <trio/trio.h>
+
 
 namespace MDFN_IEN_PCFX
 {
@@ -149,7 +149,7 @@ uint32 FXTIMER_GetRegister(const unsigned int id, char *special, const uint32 sp
 	value = control;
 	if(special)
 	{
-	 trio_snprintf(special, special_len, "Counting Enabled: %d, IRQ Enabled: %d, IRQ Asserted: %d", (int)(bool)(control & 2), (int)(bool)(control & 1), (int)(bool)(control & 4));
+	 snprintf(special, special_len, "Counting Enabled: %d, IRQ Enabled: %d, IRQ Asserted: %d", (int)(bool)(control & 2), (int)(bool)(control & 1), (int)(bool)(control & 4));
 	}
 	break;
 
@@ -157,7 +157,7 @@ uint32 FXTIMER_GetRegister(const unsigned int id, char *special, const uint32 sp
 	value = period;
 	if(special)
 	{
-	 trio_snprintf(special, special_len, "Effective Period: %d; 21477272 / %d = %fHz", EFF_PERIOD, EFF_PERIOD, (double)21477272 / (EFF_PERIOD));
+	 snprintf(special, special_len, "Effective Period: %d; 21477272 / %d = %fHz", EFF_PERIOD, EFF_PERIOD, (double)21477272 / (EFF_PERIOD));
 	}
 	break;
 
@@ -165,7 +165,7 @@ uint32 FXTIMER_GetRegister(const unsigned int id, char *special, const uint32 sp
 	value = counter;
 	if(special)
 	{
-	 //trio_snprintf(buf, 256, "Pad: %d, ??: %d, Timer: %d, Reset: %d",
+	 //snprintf(buf, 256, "Pad: %d, ??: %d, Timer: %d, Reset: %d",
 	 //*special = std::string(buf);
 	}
 	break;

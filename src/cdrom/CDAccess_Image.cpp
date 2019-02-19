@@ -32,7 +32,7 @@
 
 #include <sys/types.h>
 
-#include <trio/trio.h>
+
 
 #include <mednafen/general.h>
 #include <mednafen/string/string.h>
@@ -239,12 +239,12 @@ void CDAccess_Image::ParseTOCFileLineInfo(CDRFILE_TRACK_INFO *track, const int t
  if(track->SubchannelMode)
   sector_mult += 96;
 
- if(binoffset && trio_sscanf(binoffset, "%ld", &tmp_long) == 1)
+ if(binoffset && sscanf(binoffset, "%ld", &tmp_long) == 1)
  {
   offset += tmp_long;
  }
 
- if(msfoffset && trio_sscanf(msfoffset, "%d:%d:%d", &m, &s, &f) == 3)
+ if(msfoffset && sscanf(msfoffset, "%d:%d:%d", &m, &s, &f) == 3)
  {
   offset += ((m * 60 + s) * 75 + f) * sector_mult;
  }
@@ -257,7 +257,7 @@ void CDAccess_Image::ParseTOCFileLineInfo(CDRFILE_TRACK_INFO *track, const int t
  {
   tmp_long = sectors;
 
-  if(trio_sscanf(length, "%d:%d:%d", &m, &s, &f) == 3)
+  if(sscanf(length, "%d:%d:%d", &m, &s, &f) == 3)
    tmp_long = (m * 60 + s) * 75 + f;
   else if(track->DIFormat == DI_FORMAT_AUDIO)
   {
@@ -379,7 +379,7 @@ void CDAccess_Image::LoadSBI(const std::string& sbi_path)
 
 static void StringToMSF(const char* str, unsigned* m, unsigned* s, unsigned* f)
 {
- if(trio_sscanf(str, "%u:%u:%u", m, s, f) != 3)
+ if(sscanf(str, "%u:%u:%u", m, s, f) != 3)
   throw MDFN_Error(0, _("M:S:F time \"%s\" is malformed."), str);
 
  if(*m > 99 || *s > 59 || *f > 74)
@@ -734,7 +734,7 @@ void CDAccess_Image::ImageOpen(const std::string& path, bool image_memcache)
 
       StringToMSF(args[1].c_str(), &m, &s, &f);
 
-      if(trio_sscanf(args[0].c_str(), "%u", &wi) == 1 && wi < 100)
+      if(sscanf(args[0].c_str(), "%u", &wi) == 1 && wi < 100)
        TmpTrack.index[wi] = (m * 60 + s) * 75 + f;
       else
        throw MDFN_Error(0, _("Malformed \"INDEX\" directive: %s\n"), cmdbuf.c_str());

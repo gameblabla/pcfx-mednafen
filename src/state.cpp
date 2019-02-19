@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <mednafen/Time.h>
 
-#include <trio/trio.h>
+
 #include "driver.h"
 #include "general.h"
 #include "state.h"

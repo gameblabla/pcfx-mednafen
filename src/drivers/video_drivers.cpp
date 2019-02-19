@@ -22,7 +22,7 @@
 #include <windows.h>
 #endif
 
-#include <trio/trio.h>
+
 
 #include "video.h"
 #include "nongl.h"
@@ -253,21 +253,21 @@ void Video_MakeSettings(std::vector <MDFNSetting> &settings)
   if(!default_scale)
    default_scale = 1;
 
-  trio_snprintf(default_value, 256, "%d", default_xres);
+  snprintf(default_value, 256, "%d", default_xres);
   BuildSystemSetting(&setting, sysname, "xres", CSD_xres, CSDE_xres, MDFNST_UINT, strdup(default_value), "0", "65536");
   settings.push_back(setting);
 
-  trio_snprintf(default_value, 256, "%d", default_yres);
+  snprintf(default_value, 256, "%d", default_yres);
   BuildSystemSetting(&setting, sysname, "yres", CSD_yres, CSDE_yres, MDFNST_UINT, strdup(default_value), "0", "65536");
   settings.push_back(setting);
 
-  trio_snprintf(default_value, 256, "%f", default_scale);
+  snprintf(default_value, 256, "%f", default_scale);
   BuildSystemSetting(&setting, sysname, "xscale", CSD_xscale, NULL, MDFNST_FLOAT, strdup(default_value), "0.01", "256");
   settings.push_back(setting);
   BuildSystemSetting(&setting, sysname, "yscale", CSD_yscale, NULL, MDFNST_FLOAT, strdup(default_value), "0.01", "256");
   settings.push_back(setting);
 
-  trio_snprintf(default_value, 256, "%f", default_scalefs);
+  snprintf(default_value, 256, "%f", default_scalefs);
   BuildSystemSetting(&setting, sysname, "xscalefs", CSD_xscalefs, CSDE_xyscalefs, MDFNST_FLOAT, strdup(default_value), "0.01", "256");
   settings.push_back(setting);
   BuildSystemSetting(&setting, sysname, "yscalefs", CSD_yscalefs, CSDE_xyscalefs, MDFNST_FLOAT, strdup(default_value), "0.01", "256");

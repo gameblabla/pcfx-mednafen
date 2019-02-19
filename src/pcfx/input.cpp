@@ -26,7 +26,7 @@
 #include "input/gamepad.h"
 #include "input/mouse.h"
 
-#include <trio/trio.h>
+
 
 namespace MDFN_IEN_PCFX
 {
@@ -361,7 +361,7 @@ void FXINPUT_StateAction(StateMem *sm, const unsigned load, const bool data_only
  for(int i = 0; i < TOTAL_PORTS; i++)
  {
   char sname[256];
-  trio_snprintf(sname, 256, "INPUT%d:%d", i, InputTypes[i]);
+  snprintf(sname, 256, "INPUT%d:%d", i, InputTypes[i]);
   devices[i]->StateAction(sm, load, data_only, sname);
  }
 

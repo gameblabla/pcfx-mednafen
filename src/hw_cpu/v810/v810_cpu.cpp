@@ -42,7 +42,7 @@ found freely through public domain sources.
 // CPU routines
 
 #include <mednafen/mednafen.h>
-#include <trio/trio.h>
+
 
 #include <string.h>
 #include <errno.h>

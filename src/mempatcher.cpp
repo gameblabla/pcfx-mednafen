@@ -24,7 +24,7 @@
 #include "mednafen.h"
 
 #include <ctype.h>
-#include <trio/trio.h>
+
 #include <unistd.h>
 
 #include "general.h"
@@ -315,13 +315,13 @@ void MDFN_LoadGameCheats(Stream* override)
     int name_position = 0;
 
     if(type == 'C')
-     trio_sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %16llx %16llx %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &compare, &name_position);
+     sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %16llx %16llx %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &compare, &name_position);
     else
     {
      if(ext_format)
-      trio_sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %016llx %08x %08x %016llx %08x %08x %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &mltpl_count, &mltpl_addr_inc, &mltpl_val_inc, &copy_src_addr, &copy_src_addr_inc, &name_position);
+      sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %016llx %08x %08x %016llx %08x %08x %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &mltpl_count, &mltpl_addr_inc, &mltpl_val_inc, &copy_src_addr, &copy_src_addr_inc, &name_position);
      else
-      trio_sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %16llx %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &name_position);
+      sscanf(tbuf.c_str(), "%c %c %d %c %d %08x %16llx %n", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &name_position);
     }
 
     status = (status_tmp == 'A') ? 1 : 0;
@@ -603,7 +603,7 @@ static bool TestConditions(const char *string)
  unsigned int bytelen;
  bool passed = 1;
 
- while(trio_sscanf(string, "%u %c %63s %63s %63s", &bytelen, &endian, address, operation, value) == 5 && passed)
+ while(sscanf(string, "%u %c %63s %63s %63s", &bytelen, &endian, address, operation, value) == 5 && passed)
  {
   uint32 v_address;
   uint64 v_value;

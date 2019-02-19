@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <trio/trio.h>
+
 
 #include "png.h"
 
@@ -37,7 +37,7 @@ void MDFNI_SaveSnapshot(const MDFN_Surface *src, const MDFN_Rect *rect, const in
    std::string linebuf;
 
    if(pp.get_line(linebuf) >= 0)
-    if(trio_sscanf(linebuf.c_str(), "%u", &u) != 1)
+    if(sscanf(linebuf.c_str(), "%u", &u) != 1)
      u = 0;
   }
   catch(std::exception &e)
@@ -70,7 +70,7 @@ void MDFN_DispMessage(const char *format, ...) noexcept
  va_start(ap,format);
  char *msg = NULL;
 
- trio_vasprintf(&msg, format,ap);
+ vasprintf(&msg, format,ap);
  va_end(ap);
 
  MDFND_DispMessage(msg);

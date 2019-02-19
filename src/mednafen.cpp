@@ -20,7 +20,6 @@
 #include	<sys/types.h>
 #include	<sys/stat.h>
 #include	<unistd.h>
-#include	<trio/trio.h>
 
 #include	"general.h"
 #include	<mednafen/string/string.h>
@@ -715,7 +714,7 @@ MDFNGI *MDFNI_LoadCD(const char *force_module, const char *path)
 	 else
 	 {
 	  char namebuf[128];
-	  trio_snprintf(namebuf, sizeof(namebuf), _("Disc %zu of %zu"), i + 1, CDInterfaces.size());
+	  snprintf(namebuf, sizeof(namebuf), _("Disc %zu of %zu"), i + 1, CDInterfaces.size());
 	  rmd->Media.push_back(RMD_Media({namebuf, 0}));
 	 }
 	}
@@ -733,7 +732,7 @@ MDFNGI *MDFNI_LoadCD(const char *force_module, const char *path)
          else
          {
           char tmpstr[256];
-          trio_snprintf(tmpstr, 256, "%s.enable", (*it)->shortname);
+          snprintf(tmpstr, 256, "%s.enable", (*it)->shortname);
 
           // Is module enabled?
           if(!MDFN_GetSettingB(tmpstr))
@@ -884,7 +883,7 @@ static MDFN_COLD MDFNGI* FindCompatibleModule(const char* force_module, MDFNFILE
 	 else
 	 {
 	  char tmpstr[256];
-	  trio_snprintf(tmpstr, 256, "%s.enable", (*it)->shortname);
+	  snprintf(tmpstr, 256, "%s.enable", (*it)->shortname);
 
 	  // Is module enabled?
 	  if(!MDFN_GetSettingB(tmpstr))
@@ -1028,10 +1027,10 @@ static void BuildDynamicSetting(MDFNSetting *setting, const char *system_name, c
 
  memset(setting, 0, sizeof(MDFNSetting));
 
- trio_snprintf(setting_name, 256, "%s.%s", system_name, name);
+ snprintf(setting_name, 256, "%s.%s", system_name, name);
 
  setting->name = strdup(setting_name);
- setting->description = description;
+ setting->description = (char*)description;
  setting->type = type;
  setting->flags = flags;
  setting->default_value = default_value;
@@ -1212,7 +1211,7 @@ int MDFNI_Initialize(const char *basedir, const std::vector<MDFNSetting> &Driver
 
 	try
 	{
-	 settings_file_path = std::string(basedir) + std::string(PSS) + std::string("mednafen-09x.cfg");
+	 settings_file_path = std::string(basedir) + std::string(PSS) + std::string("smallpcfx-conf.cfg");
 	 MDFN_LoadSettings(settings_file_path.c_str());
 	}
 	catch(std::exception &e)
@@ -1375,7 +1374,7 @@ static void StateAction_RINP(StateMem* sm, const unsigned load, const bool data_
  {
   for(unsigned x = 0; x < 16; x++)
   {
-	trio_snprintf(namebuf[x], sizeof(namebuf[x]), "%02x%08x", x, PortDevice[x]);
+	snprintf(namebuf[x], sizeof(namebuf[x]), "%02x%08x", x, PortDevice[x]);
   }
  }
 
@@ -1406,7 +1405,7 @@ void MDFN_StateAction(StateMem *sm, const unsigned load, const bool data_only)
    SFEND
   };
 
-  trio_snprintf(sname, sizeof(sname), "MDFNDRIVE_%08x", i);
+  snprintf(sname, sizeof(sname), "MDFNDRIVE_%08x", i);
 
   if(MDFNSS_StateAction(sm, load, data_only, StateRegs, sname, true) && load)
   {
@@ -1478,7 +1477,7 @@ void MDFN_printf(const char *format, ...) noexcept
 
  format_temp[newlen] = 0;
 
- temp = trio_vaprintf(format_temp, ap);
+	vasprintf(&temp, format_temp, ap);
  free(format_temp);
 
  MDFND_Message(temp);
@@ -1494,8 +1493,7 @@ void MDFN_PrintError(const char *format, ...) noexcept
  va_list ap;
 
  va_start(ap, format);
-
- temp = trio_vaprintf(format, ap);
+ vasprintf(&temp, format, ap);
  if(!temp)
  {
   MDFND_PrintError("Error allocating memory for the error message!");
@@ -1516,8 +1514,7 @@ void MDFN_DebugPrintReal(const char *file, const int line, const char *format, .
  va_list ap;
 
  va_start(ap, format);
-
- temp = trio_vaprintf(format, ap);
+ vasprintf(&temp, format, ap);
  printf("%s:%d  %s\n", file, line, temp);
  free(temp);
 

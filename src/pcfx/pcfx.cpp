@@ -35,7 +35,7 @@
 #include <mednafen/FileStream.h>
 #include <mednafen/compress/GZFileStream.h>
 
-#include <trio/trio.h>
+
 
 extern MDFNGI EmulatedPCFX;
 
