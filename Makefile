@@ -23,9 +23,9 @@ CXXFLAGS	= $(CC_OPTS) -std=gnu++11
 LDFLAGS     = -lSDL -lm -lz -lstdc++ -pthread -lasound
 
 # Files to be compiled
-SRCDIR    = src src/video src/cputest src/string src/demo src/resampler src/hash src/compress src/drivers 
+SRCDIR    = src src/video src/string src/demo src/resampler src/hash src/compress src/drivers 
 SRCDIR    += src/hw_cpu src/hw_misc src/hw_video src/mpcdec 
-SRCDIR    += src/quicklz src/sound_ src/sexyal src/cdrom 
+SRCDIR    += src/sexyal src/cdrom 
 SRCDIR    += src/sexyal/drivers src/hw_sound/pce_psg src/hw_cpu/v810 src/thread
 SRCDIR    += src/pcfx/input src/pcfx
 SRCDIR    += src/sound src/tremor src/hw_video/huc6270 src/sexyal/drivers_alsa
