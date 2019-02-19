@@ -12,10 +12,6 @@ This should run faster on hardware that runs faster on 16-bits surfaces.
 We pretty much removed everything that could slow it. Now the profilter says that what's
 slowing down the emulator is the CPU core itself :(
 
-# Remove libtrio
-Why is this a thing ? It's not even maintained anymore, except by Mednafen of course...
-We need to switch to using the C library instead and remove those that we can't switch (like trio_aprintf but we need to be careful about that)
-
 # Remove tests
 They are useful for checking Mednafen and whetever it would crash or not.
 Maybe put it behind a DEBUG flag ?
